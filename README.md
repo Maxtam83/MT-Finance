@@ -239,16 +239,33 @@ Le thème **sombre** est celui du site et s'affiche par défaut. Le thème **cla
 
 | Élément | Fichier |
 |---|---|
-| Logo dans l'application | `src/components/atoms/brand-mark.tsx` (SVG intégré) |
+| Tracés, couleurs et traits de plume | `src/lib/brand-logo.ts` |
+| Lettres communes aux deux logos | `src/components/atoms/logo-parts.tsx` |
+| Logo fixe (titre de connexion, navigation) | `src/components/atoms/brand-mark.tsx` |
+| Logo animé (ouverture) | `src/components/atoms/animated-brand-mark.tsx` |
 | Favicon | `src/app/icon.svg` |
 | Icône Apple et icônes de la PWA | `src/app/apple-icon.png`, `public/icons/` |
 
-Les icônes PNG montrent le logo sur le fond sombre `#06090d`. Après un changement de logo, remplacez **tous** ces fichiers. La version « maskable » doit garder une marge, car les téléphones en rognent les bords.
+Sur l'écran de connexion, le logo remplace les lettres « MT » devant « Finance ». Les lecteurs d'écran lisent « MT Finance ».
 
-À l'ouverture, `SplashScreen` anime le logo pendant 2 secondes : le « M » monte, le « T » se trace, puis l'écran s'efface (styles dans `src/app/globals.css`). L'animation :
+Les icônes PNG montrent le logo sur le fond sombre `#06090d`. Après un changement de logo, remplacez `src/app/icon.svg`, les tracés de `brand-logo.ts` et **toutes** les icônes. La version « maskable » doit garder une marge, car les téléphones en rognent les bords. Un test vérifie que les tracés et les couleurs de l'application sont ceux de `icon.svg`.
+
+À l'ouverture, `SplashScreen` anime le logo pendant 2 secondes (styles dans `src/app/globals.css`) :
+
+| Début | Étape |
+|---|---|
+| 0,00 s | Le « M » se construit : montant gauche, diagonale, montant droit |
+| 0,40 s | Le « T » est tracé comme à la plume (boucle, hampe, puis barre), et une lueur s'allume derrière le logo |
+| 1,08 s | « Finance » se dévoile |
+| 1,24 s | Un reflet balaie le logo |
+| 1,65 s | L'ensemble s'avance et s'efface |
+
+Le « T » est découvert par un masque : deux traits épais, les « traits de plume », suivent son centre. Si vous les modifiez dans `brand-logo.ts`, ajustez les longueurs `splash-pen-*` de `globals.css`. Les tests vérifient ces longueurs et la durée de 2 secondes, mais **pas** que la plume est assez large pour découvrir toute la lettre : contrôlez-le à l'écran.
+
+L'animation :
 
 - se joue à chaque chargement complet (ouverture, actualisation, retour après connexion), mais pas en changeant de page dans l'application ;
-- fonctionne en CSS seul, sans bloquer les clics ;
+- fonctionne en CSS et SVG, sans JavaScript ni bibliothèque, et sans bloquer les clics ;
 - est désactivée si le système demande de **réduire les animations**.
 
 ## Sécurité

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "vitest";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/atoms/alert";
+import { AnimatedBrandMark } from "@/components/atoms/animated-brand-mark";
 import { Badge } from "@/components/atoms/badge";
 import { BrandMark } from "@/components/atoms/brand-mark";
 import { Button } from "@/components/atoms/button";
@@ -121,13 +122,64 @@ describe("atomes", () => {
     expect(logos[1]).toHaveClass("h-32");
   });
 
-  test("dessinent le logo en deux lettres, animables séparément", () => {
+  test("dessinent le logo fixe en deux lettres, sans animation", () => {
     const { container } = render(<BrandMark />);
 
-    expect(container.querySelectorAll(".logo-letter-m > path")).toHaveLength(3);
-    expect(container.querySelectorAll(".logo-letter-t > path")).toHaveLength(5);
+    expect(container.querySelectorAll("[data-letter='m'] > path")).toHaveLength(3);
+    expect(container.querySelectorAll("[data-letter='t'] > path")).toHaveLength(5);
+    expect(container.querySelector("[class*='splash-'], mask")).toBeNull();
     // Aucun style ni script intégré : la politique de sécurité les bloquerait.
     expect(container.querySelector("style, script, [style]")).toBeNull();
+  });
+
+  test("préparent le tracé du logo animé", () => {
+    const { container } = render(<AnimatedBrandMark />);
+    const classNames = (selector: string) =>
+      [...container.querySelectorAll(selector)].map((element) => element.getAttribute("class"));
+
+    expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
+    // Les trois traits du « M » s'animent séparément.
+    expect(classNames("[data-letter='m'] > path")).toEqual([
+      "splash-m-left",
+      "splash-m-diagonal",
+      "splash-m-right",
+    ]);
+    // Le « T » n'est découvert que par les deux traits de plume.
+    expect(classNames("mask > path")).toEqual(["splash-pen-stem", "splash-pen-bar"]);
+    expect(container.querySelector("[data-letter='t']")).toHaveAttribute(
+      "mask",
+      `url(#${container.querySelector("mask")?.id})`,
+    );
+    // Le reflet est limité au contour des huit tracés du logo.
+    expect(container.querySelectorAll("[id$='-shape'] > path")).toHaveLength(8);
+    expect(container.querySelector("g[clip-path] .splash-glint")).not.toBeNull();
+    expect(container.querySelector("style, script, [style]")).toBeNull();
+  });
+
+  test("rattachent chaque référence du logo animé à son propre dessin", () => {
+    const { container } = render(
+      <>
+        <AnimatedBrandMark />
+        <AnimatedBrandMark className="h-32" />
+      </>,
+    );
+
+    const logos = [...container.querySelectorAll("[data-slot='animated-brand-mark']")];
+    const ids = [...container.querySelectorAll("[id]")].map((element) => element.id);
+
+    // Quatre définitions par logo : dégradé, reflet, plume et contour.
+    expect(new Set(ids).size).toBe(8);
+    for (const logo of logos) {
+      const references = [...logo.querySelectorAll("*")]
+        .flatMap((element) => [...element.attributes])
+        .flatMap((attribute) => attribute.value.match(/url\(#([^)]+)\)/)?.[1] ?? []);
+
+      expect(references).toHaveLength(4);
+      for (const reference of references) {
+        expect(logo.querySelector(`[id="${reference}"]`)).not.toBeNull();
+      }
+    }
+    expect(logos[1]).toHaveClass("h-32");
   });
 
   test("annoncent le résultat d'un formulaire", () => {

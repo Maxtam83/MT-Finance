@@ -107,11 +107,19 @@ describe("gabarits", () => {
     expect(screen.getByText("formulaire")).toBeInTheDocument();
   });
 
-  test("n'affichent pas de logo au-dessus du titre de connexion", () => {
+  test("remplacent le « MT » du titre de connexion par le logo", () => {
     const { container } = render(<AuthTemplate>formulaire</AuthTemplate>);
 
-    expect(container.querySelector("[data-slot='brand-mark']")).toBeNull();
-    expect(screen.getByRole("heading", { level: 1, name: "MT Finance" })).toBeInTheDocument();
+    const title = screen.getByRole("heading", { level: 1, name: "MT Finance" });
+    const logos = container.querySelectorAll<SVGElement>("[data-slot='brand-mark']");
+
+    // Un seul logo, placé dans le titre : aucun autre au-dessus.
+    expect(logos).toHaveLength(1);
+    expect(title).toContainElement(logos[0] ?? null);
+    // « MT » n'est plus écrit à l'écran : seuls les lecteurs d'écran le reçoivent.
+    expect(screen.getByText("MT Finance")).toHaveClass("sr-only");
+    expect(screen.getByText("Finance")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText("MT")).not.toBeInTheDocument();
   });
 });
 

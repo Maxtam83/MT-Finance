@@ -133,6 +133,7 @@ https://<domaine>/api/auth/callback/google
 - [ ] Une passkey peut être ajoutée puis utilisée pour se connecter. **Ce parcours n'a pas encore été testé avec un véritable appareil.**
 - [ ] L'application s'installe sur mobile et s'ouvre sans la barre du navigateur.
 - [ ] L'icône installée montre le logo en entier, et l'animation d'ouverture se joue puis disparaît. **Ni l'icône installée ni l'animation n'ont encore été essayées sur un téléphone.**
+- [ ] Sur iPhone (Safari), le « T » se trace en entier pendant l'animation, sans morceau manquant à la fin. **Safari n'a pas été testé.**
 - [ ] Les en-têtes de sécurité sont présents, dont `Content-Security-Policy` avec un jeton qui change à chaque appel :
 
 Remplacez la valeur de la première commande par votre domaine :

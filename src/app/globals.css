@@ -44,6 +44,7 @@
   --color-glass-border: var(--glass-border);
   --color-halo-primary: var(--halo-primary);
   --color-halo-slate: var(--halo-slate);
+  --color-halo-glow: var(--halo-glow);
 
   --shadow-glow: 0 0 18px var(--glow);
   --shadow-card: 0 18px 40px -24px var(--card-shadow);
@@ -85,6 +86,7 @@
   --glass-border: rgb(55 85 95 / 0.18);
   --halo-primary: rgb(4 118 251 / 0.1);
   --halo-slate: rgb(55 85 95 / 0.1);
+  --halo-glow: rgb(4 118 251 / 0.2);
   --glow: rgb(3 102 217 / 0.3);
   --card-shadow: rgb(12 18 24 / 0.18);
   --gradient-from: #0284c7;
@@ -119,6 +121,7 @@
   --glass-border: rgb(55 85 95 / 0.3);
   --halo-primary: rgb(4 118 251 / 0.15);
   --halo-slate: rgb(55 85 95 / 0.2);
+  --halo-glow: rgb(4 118 251 / 0.32);
   --glow: rgb(4 118 251 / 0.45);
   --card-shadow: rgb(0 0 0 / 0.6);
   --gradient-from: #38bdf8;
@@ -148,27 +151,67 @@
 }
 
 /*
- * Animation d'ouverture (composant SplashScreen) : les trois traits du « M »
- * montent l'un après l'autre, le « T » se trace de bas en haut, puis l'écran
- * s'efface. Durée totale : 2 secondes.
+ * Animation d'ouverture (composant SplashScreen), 2 secondes :
+ *   0,00 s  le « M » se construit : montant gauche, diagonale, montant droit ;
+ *   0,40 s  le « T » est tracé comme à la plume : boucle, hampe, puis barre ;
+ *   1,08 s  « Finance » se dévoile ;
+ *   1,24 s  un reflet balaie le logo ;
+ *   1,65 s  l'ensemble s'avance et s'efface pour laisser place à l'application.
  */
-@keyframes splash-letter-m {
+@keyframes splash-grow {
   from {
-    opacity: 0;
-    transform: translateY(110px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: scaleY(0);
   }
 }
 
-@keyframes splash-letter-t {
+@keyframes splash-slide {
   from {
-    clip-path: inset(100% 100% 0 0);
+    opacity: 0;
+    transform: translate(-90px, -125px);
+  }
+}
+
+@keyframes splash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-bloom {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.65;
+    scale: 1.15;
+  }
+}
+
+@keyframes splash-wordmark {
+  from {
+    opacity: 0;
+    translate: 0 0.45em;
+    clip-path: inset(0 100% 0 0);
   }
   to {
     clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes splash-glint {
+  to {
+    transform: translateX(1750px);
+  }
+}
+
+@keyframes splash-advance {
+  to {
+    opacity: 0;
+    scale: 1.14;
   }
 }
 
@@ -186,26 +229,59 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   background-color: var(--background);
   /* Ne bloque jamais un clic, même si l'animation ne se jouait pas. */
   pointer-events: none;
-  animation: splash-exit 0.4s ease-in 1.6s forwards;
+  animation: splash-exit 0.35s ease-in 1.65s forwards;
 }
 
-.splash .logo-letter-m > path {
-  animation: splash-letter-m 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+.splash-content {
+  animation: splash-advance 0.35s cubic-bezier(0.55, 0, 1, 0.45) 1.65s forwards;
 }
 
-.splash .logo-letter-m > path:nth-child(2) {
-  animation-delay: 0.1s;
+/* Les montants du « M » poussent depuis leur base, avec un léger rebond. */
+.splash-m-left,
+.splash-m-right {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: splash-grow 0.5s cubic-bezier(0.3, 1.35, 0.5, 1) backwards;
 }
 
-.splash .logo-letter-m > path:nth-child(3) {
+.splash-m-right {
   animation-delay: 0.2s;
 }
 
-.splash .logo-letter-t {
-  animation: splash-letter-t 0.8s cubic-bezier(0.65, 0, 0.35, 1) 0.45s backwards;
+.splash-m-diagonal {
+  animation: splash-slide 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s backwards;
+}
+
+/*
+ * Les longueurs ci-dessous couvrent les traits de plume de `src/lib/brand-logo.ts`.
+ * Sans ces styles, les traits sont entiers et le « T » reste visible.
+ */
+.splash-pen-stem {
+  stroke-dasharray: 775;
+  stroke-dashoffset: 775;
+  animation: splash-draw 0.55s cubic-bezier(0.65, 0, 0.45, 1) 0.4s forwards;
+}
+
+.splash-pen-bar {
+  stroke-dasharray: 820;
+  stroke-dashoffset: 820;
+  animation: splash-draw 0.42s cubic-bezier(0.3, 0.6, 0.2, 1) 0.93s forwards;
+}
+
+.splash-glow {
+  animation: splash-bloom 1.25s ease-out 0.4s both;
+}
+
+.splash-wordmark {
+  animation: splash-wordmark 0.45s cubic-bezier(0.22, 1, 0.36, 1) 1.08s backwards;
+}
+
+.splash-glint {
+  animation: splash-glint 0.46s cubic-bezier(0.45, 0, 0.55, 1) 1.24s forwards;
 }
 
 /* Les personnes qui limitent les animations voient directement l'application. */

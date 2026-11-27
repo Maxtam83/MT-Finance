@@ -263,7 +263,8 @@ describe("animation d'ouverture", () => {
     const splash = container.querySelector("[data-slot='splash-screen']");
     expect(splash).toHaveClass("splash");
     expect(splash).toHaveAttribute("aria-hidden", "true");
-    expect(splash?.querySelector("[data-slot='brand-mark']")).not.toBeNull();
+    expect(splash?.querySelector("[data-slot='animated-brand-mark']")).not.toBeNull();
+    expect(splash?.querySelector(".splash-wordmark")).toHaveTextContent("Finance");
   });
 });
 
