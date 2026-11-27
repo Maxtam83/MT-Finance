@@ -42,7 +42,7 @@ Vérifiez l'adresse affichée après « Base cible », puis appliquez :
 npm run db:deploy:turso
 ```
 
-Sur une base neuve, deux migrations sont attendues : `…_init` puis `…_joint_account_requests`.
+Sur une base neuve, trois migrations sont attendues : `…_init`, `…_joint_account_requests` puis `…_rate_limit`.
 
 Le script joue les migrations manquantes dans l'ordre, chacune dans une transaction, et les note dans la table `_app_migrations`. Il s'arrête à la première erreur et refuse toute migration modifiée après son application. Les migrations ne sont **jamais** lancées automatiquement par Vercel.
 
@@ -93,6 +93,10 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 
 `prisma generate` est lancé par le script `postinstall`.
 
+**Pare-feu (conseillé) :** si votre offre le permet, ajoutez dans le pare-feu Vercel une règle de limitation sur `/api/auth/*`. Elle complète la limite de débit de l'application en bloquant les afflux de requêtes avant qu'ils ne consomment le quota de la base.
+
+**N'ajoutez pas de proxy ou de CDN devant Vercel** sans configurer `advanced.ipAddress.trustedProxies` : la limite de débit ne saurait plus distinguer les visiteurs.
+
 **Déploiements de prévisualisation :** ne leur donnez jamais la base ni la clé de production. Sans variables propres, leur build échoue à la validation de l'environnement. La connexion OAuth n'y fonctionnerait de toute façon pas avec l'URL de production.
 
 ## 6. Brancher le domaine
@@ -108,11 +112,15 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 - [ ] Un compte GitHub absent de la liste blanche est refusé avec un message clair.
 - [ ] Après retrait d'une adresse dans l'administration, la personne est déconnectée.
 - [ ] L'administration ne propose aucune action sur les comptes.
+- [ ] La personne invitée peut quitter un compte joint et le propriétaire peut arrêter le partage (à vérifier quand la création de comptes existera).
+- [ ] La console du navigateur ne signale aucune erreur `Content Security Policy`, y compris après la connexion.
+- [ ] Quatre demandes de connexion en moins de 10 secondes : la quatrième est refusée (`429`).
+- [ ] Les journaux Vercel ne contiennent pas le message `could not determine a client IP`. S'il apparaît, tous les visiteurs partagent le même compteur : corrigez avant d'ouvrir l'accès.
 - [ ] Une demande de compte joint n'ouvre aucun accès avant la validation de la personne invitée (à vérifier quand la création de comptes existera).
 - [ ] La police et les thèmes sombre et clair s'affichent correctement.
 - [ ] Une passkey peut être ajoutée puis utilisée pour se connecter. **Ce parcours n'a pas encore été testé avec un véritable appareil.**
 - [ ] L'application s'installe sur mobile et s'ouvre sans la barre du navigateur.
-- [ ] Les en-têtes de sécurité sont présents :
+- [ ] Les en-têtes de sécurité sont présents, dont `Content-Security-Policy` avec un jeton qui change à chaque appel :
 
 ```powershell
 (Invoke-WebRequest -Uri https://finance.maxime-tamarin.fr/login -Method Head -UseBasicParsing).Headers

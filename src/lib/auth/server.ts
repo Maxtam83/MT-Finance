@@ -1,6 +1,7 @@
 import "server-only";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
+import type { BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -30,7 +31,8 @@ async function assertAccessAllowed(user: { email: string; emailVerified: boolean
   if (!user.emailVerified) denyAccess(ACCESS_ERROR.emailUnverified);
 }
 
-export const auth = betterAuth({
+/** Configuration exportée pour que les tests puissent créer une instance équivalente. */
+export const authOptions = {
   appName: APP_NAME,
   baseURL: appUrl.origin,
   secret: env.BETTER_AUTH_SECRET,
@@ -54,6 +56,9 @@ export const auth = betterAuth({
   // "Account" désigne les comptes bancaires : la table OAuth est renommée.
   account: { modelName: "authAccount", encryptOAuthTokens: true },
   onAPIError: { errorURL: `${appUrl.origin}/login` },
+  // Limite de débit active en production. Les compteurs sont en base pour être
+  // communs à toutes les instances du serveur, et non propres à chacune.
+  rateLimit: { storage: "database" },
 
   databaseHooks: {
     // 1. Création de compte : refusée hors liste blanche, rôle attribué ici.
@@ -95,4 +100,6 @@ export const auth = betterAuth({
     // Doit rester le dernier : transmet les cookies depuis les Server Actions.
     nextCookies(),
   ],
-});
+} satisfies BetterAuthOptions;
+
+export const auth = betterAuth(authOptions);

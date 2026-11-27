@@ -133,6 +133,69 @@ describe("contrôle à chaque nouvelle session", () => {
   });
 });
 
+describe("limite de débit", () => {
+  /** Instance qui applique la limite, comme en production. */
+  const createServerInstance = async () => {
+    const { betterAuth } = await import("better-auth");
+    const { authOptions } = await import("@/lib/auth/server");
+    return betterAuth({
+      ...authOptions,
+      rateLimit: { ...authOptions.rateLimit, enabled: true },
+    });
+  };
+
+  /** Demande de connexion venant de l'adresse IP donnée ; renvoie le statut HTTP. */
+  const attempt = async (
+    instance: { handler: (request: Request) => Promise<Response> },
+    ip: string,
+  ) => {
+    const response = await instance.handler(
+      new Request("http://localhost:3000/api/auth/sign-in/social", {
+        method: "POST",
+        headers: {
+          origin: "http://localhost:3000",
+          "content-type": "application/json",
+          "x-forwarded-for": ip,
+        },
+        body: JSON.stringify({ provider: "github", callbackURL: "/" }),
+      }),
+    );
+    return response.status;
+  };
+
+  /** Compteurs enregistrés en base pour une adresse. */
+  const countersFor = (ip: string) =>
+    prisma.rateLimit.findMany({ where: { key: { contains: ip } }, select: { count: true } });
+
+  test("refuse la quatrième demande de connexion en dix secondes", async () => {
+    const instance = await createServerInstance();
+
+    for (let request = 0; request < 3; request++) {
+      expect(await attempt(instance, "203.0.113.7")).toBe(200);
+    }
+
+    expect(await attempt(instance, "203.0.113.7")).toBe(429);
+    expect(await countersFor("203.0.113.7")).toEqual([{ count: 3 }]);
+    // Une autre adresse n'est pas pénalisée.
+    expect(await attempt(instance, "198.51.100.4")).toBe(200);
+  });
+
+  // La mémoire d'un processus est commune à ses instances : seul un compteur
+  // écrit en base, hors de ce processus, prouve que l'état est bien partagé.
+  test("tient compte des demandes comptées par un autre serveur", async () => {
+    const instance = await createServerInstance();
+    expect(await attempt(instance, "192.0.2.55")).toBe(200);
+
+    // Un autre serveur a compté deux demandes de la même adresse.
+    await prisma.rateLimit.updateMany({
+      where: { key: { contains: "192.0.2.55" } },
+      data: { count: 3 },
+    });
+
+    expect(await attempt(instance, "192.0.2.55")).toBe(429);
+  });
+});
+
 describe("fournisseurs et route", () => {
   test("n'active que les fournisseurs configurés", () => {
     expect(Object.keys(auth.options.socialProviders ?? {})).toEqual(["github"]);

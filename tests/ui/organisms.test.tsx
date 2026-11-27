@@ -42,6 +42,8 @@ vi.mock("@/actions/joint-accounts", () => ({
   acceptJointAccountRequest: vi.fn(),
   declineJointAccountRequest: vi.fn(),
   cancelJointAccountRequest: vi.fn(),
+  leaveSharedAccount: vi.fn(),
+  stopAccountSharing: vi.fn(),
 }));
 // La lecture en base n'est pas nécessaire : seuls les types sont utilisés ici.
 vi.mock("@/lib/joint-accounts/queries", () => ({}));
@@ -102,6 +104,12 @@ describe("liste blanche", () => {
 });
 
 describe("demande de compte joint", () => {
+  test("prévient du détachement des tags avant l'envoi", () => {
+    render(<ShareAccountForm accountId="c1" />);
+
+    expect(screen.getByText(/vos tags seront détachés/)).toHaveTextContent("sans retour possible");
+  });
+
   /** Remplit puis envoie la demande, avec ou sans accord. */
   const submit = async ({ consent }: { consent: boolean }) => {
     mocks.requestJointAccount.mockResolvedValue({ status: "success", message: "Envoyée." });
@@ -159,6 +167,19 @@ describe("cartes de compte", () => {
     expect(screen.queryByText("Transformer en compte joint")).not.toBeInTheDocument();
   });
 
+  test.each([
+    [true, "Arrêter le partage"],
+    [false, "Quitter le compte joint"],
+  ])("permet à chacun de mettre fin au partage (propriétaire : %s)", (isOwner, label) => {
+    render(
+      <AccountCard
+        account={{ ...account, isOwner, joint: { sharedWith: "b@x.fr", tagOwner: "Vous" } }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+  });
+
   test("décrit un compte joint", () => {
     render(<AccountCard account={{ ...account, joint: { sharedWith: "b@x.fr", tagOwner: "Vous" } }} />);
 
@@ -191,6 +212,10 @@ describe("demandes reçues", () => {
     expect(screen.getByText("Compte partagé")).toBeInTheDocument();
     expect(screen.getByText(expected)).toBeInTheDocument();
     expect(screen.getByText(/accéderez à tout l'historique/)).toBeInTheDocument();
+    // La personne invitée est prévenue du détachement avant de valider.
+    expect(screen.queryByText(/seront détachés, sans retour possible/) !== null).toBe(
+      tagOwner === "INVITEE",
+    );
     expect(screen.getByRole("button", { name: "Accepter" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refuser" })).toBeInTheDocument();
   });
@@ -200,8 +225,8 @@ describe("navigation", () => {
   test.each([true, false])("affiche l'administration selon le rôle (%s)", (isAdmin) => {
     render(
       <>
-        <AppSidebar isAdmin={isAdmin} email="a@x.fr" />
-        <BottomNav isAdmin={isAdmin} />
+        <AppSidebar isAdmin={isAdmin} email="a@x.fr" pendingRequestCount={0} />
+        <BottomNav isAdmin={isAdmin} pendingRequestCount={0} />
         <MobileHeader />
       </>,
     );
@@ -210,6 +235,23 @@ describe("navigation", () => {
     for (const link of screen.getAllByRole("link", { name: "Comptes" })) {
       expect(link).toHaveAttribute("aria-current", "page");
     }
+  });
+});
+
+describe("demandes en attente dans la navigation", () => {
+  test("sont signalées sur « Comptes » seulement, sur ordinateur et sur mobile", () => {
+    render(
+      <>
+        <AppSidebar isAdmin={false} email="a@x.fr" pendingRequestCount={2} />
+        <BottomNav isAdmin={false} pendingRequestCount={2} />
+      </>,
+    );
+
+    expect(
+      screen.getAllByRole("link", { name: "Comptes, 2 demandes en attente" }),
+    ).toHaveLength(2);
+    expect(screen.getAllByText("2")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Import" })).toHaveLength(2);
   });
 });
 

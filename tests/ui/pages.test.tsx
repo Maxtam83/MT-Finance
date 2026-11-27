@@ -28,9 +28,13 @@ const mocks = vi.hoisted(() => ({
   passkeyCount: vi.fn(),
   allowedEmails: vi.fn(),
   users: vi.fn(),
+  nonce: { current: null as string | null },
 }));
 
 vi.mock("next/font/google", () => ({ Inter: () => ({ variable: "police-inter" }) }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(mocks.nonce.current ? { "x-nonce": mocks.nonce.current } : {}),
+}));
 vi.mock("next/navigation", async () => {
   // Import différé : `vi.mock` est exécuté avant les imports du fichier.
   const helpers = await import("../helpers/next");
@@ -69,7 +73,10 @@ const session = { user: { id: "u1", email: "a@x.fr", name: null, role: "USER" as
 
 beforeEach(() => {
   setTestEnv();
-  for (const mock of Object.values(mocks)) mock.mockReset();
+  for (const mock of Object.values(mocks)) {
+    if (typeof mock === "function") mock.mockReset();
+  }
+  mocks.nonce.current = null;
   mocks.requireAuth.mockResolvedValue(session);
   mocks.requireAdmin.mockResolvedValue(session);
   mocks.getAuthSession.mockResolvedValue(null);
@@ -85,7 +92,7 @@ describe("gabarits", () => {
   test("structurent les pages protégées, publiques et leur en-tête", () => {
     render(
       <>
-        <AppShell isAdmin={false} email="a@x.fr">
+        <AppShell isAdmin={false} email="a@x.fr" pendingRequestCount={0}>
           <PageTemplate title="Titre" description="Intro">
             contenu
           </PageTemplate>
@@ -123,6 +130,17 @@ describe("pages protégées", () => {
       expect(mocks.listAccountSummaries).not.toHaveBeenCalled();
     },
   );
+
+  test("signale dans la navigation les demandes de la personne connectée", async () => {
+    mocks.countReceivedRequests.mockResolvedValue(3);
+
+    render(await AppLayout({ children: "contenu" }));
+
+    expect(mocks.countReceivedRequests).toHaveBeenCalledWith("a@x.fr");
+    expect(
+      screen.getAllByRole("link", { name: "Comptes, 3 demandes en attente" }),
+    ).toHaveLength(2);
+  });
 
   test("lit les comptes et demandes de la seule personne connectée", async () => {
     await AccountsPage();
@@ -223,8 +241,21 @@ describe("page de connexion", () => {
 });
 
 describe("mise en page racine", () => {
-  test("déclare la langue, la police et les couleurs du thème", () => {
-    const tree = RootLayout({ children: "contenu" });
+  test.each([["jeton-de-test"], [null]])(
+    "transmet au thème le jeton de la CSP (%s)",
+    async (nonce) => {
+      mocks.nonce.current = nonce;
+
+      const tree = (await RootLayout({ children: "contenu" })) as ReactElement<{
+        children: ReactElement<{ children: ReactElement<{ nonce?: string }> }>;
+      }>;
+
+      expect(tree.props.children.props.children.props.nonce).toBe(nonce ?? undefined);
+    },
+  );
+
+  test("déclare la langue, la police et les couleurs du thème", async () => {
+    const tree = await RootLayout({ children: "contenu" });
 
     expect(isValidElement(tree)).toBe(true);
     const html = tree as ReactElement<{ lang: string; className: string }>;

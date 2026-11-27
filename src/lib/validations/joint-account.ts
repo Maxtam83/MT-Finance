@@ -14,3 +14,7 @@ export const requestJointAccountSchema = z.object({
 export const jointRequestIdSchema = z.object({
   requestId: idSchema,
 });
+
+export const jointAccountIdSchema = z.object({
+  accountId: idSchema,
+});

@@ -12,7 +12,8 @@ import { prisma } from "@/lib/prisma";
 
 /*
  * Un compte ne devient joint qu'avec l'accord des deux personnes, chacune depuis
- * sa propre session. Aucune de ces fonctions ne lit de montant ni d'opération.
+ * sa propre session. Chacune peut ensuite y mettre fin seule. Aucune de ces
+ * fonctions ne lit de montant ni d'opération.
  */
 
 /** Personne connectée qui agit. Son identité vient toujours de la session. */
@@ -28,6 +29,8 @@ export interface JointRequestInput {
 }
 
 const REQUEST_UNAVAILABLE = "Demande introuvable, expirée ou déjà traitée.";
+// Même message pour un compte inexistant, personnel ou appartenant à d'autres.
+const JOINT_ACCOUNT_UNAVAILABLE = "Compte joint introuvable.";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 /** Refus métier levé dans une transaction pour l'annuler entièrement. */
@@ -45,7 +48,7 @@ export function pendingRequestFilter(now: Date) {
 
 /** Exécute une transaction ; un `Refusal` l'annule et devient un message d'erreur. */
 async function runGuarded(
-  work: (transaction: Prisma.TransactionClient) => Promise<string>,
+  work: (tx: Prisma.TransactionClient) => Promise<string>,
 ): Promise<ActionState> {
   try {
     return { status: "success", message: await prisma.$transaction(work) };
@@ -65,8 +68,8 @@ export async function createJointRequest(
     return failure("Vous ne pouvez pas vous inviter vous-même.");
   }
 
-  return runGuarded(async (transaction) => {
-    const account = await transaction.account.findFirst({
+  return runGuarded(async (tx) => {
+    const account = await tx.account.findFirst({
       where: { id: input.accountId, members: { some: { userId: requester.id, role: "OWNER" } } },
       select: { _count: { select: { members: true } } },
     });
@@ -76,7 +79,7 @@ export async function createJointRequest(
       throw new Refusal("Ce compte est déjà un compte joint.");
     }
 
-    const pending = await transaction.jointAccountRequest.count({
+    const pending = await tx.jointAccountRequest.count({
       where: { accountId: input.accountId, ...pendingRequestFilter(now) },
     });
     if (pending > 0) {
@@ -85,7 +88,7 @@ export async function createJointRequest(
       );
     }
 
-    await transaction.jointAccountRequest.create({
+    await tx.jointAccountRequest.create({
       data: {
         ...input,
         requesterId: requester.id,
@@ -117,23 +120,23 @@ export async function acceptJointRequest(
   // La personne qui invite doit toujours être autorisée au moment de la validation.
   if (!(await isEmailAllowed(request.requester.email))) return failure(REQUEST_UNAVAILABLE);
 
-  return runGuarded(async (transaction) => {
+  return runGuarded(async (tx) => {
     // L'écriture ouvre la transaction : la demande ne peut être consommée qu'une fois.
-    const claimed = await transaction.jointAccountRequest.updateMany({
+    const claimed = await tx.jointAccountRequest.updateMany({
       where: ownRequest,
       data: { status: JOINT_REQUEST_STATUS.accepted, resolvedAt: now },
     });
     if (claimed.count !== 1) throw new Refusal(REQUEST_UNAVAILABLE);
 
     const { accountId, requesterId, tagOwner } =
-      await transaction.jointAccountRequest.findUniqueOrThrow({
+      await tx.jointAccountRequest.findUniqueOrThrow({
         where: { id: requestId },
         select: { accountId: true, requesterId: true, tagOwner: true },
       });
 
     // La situation du compte a pu changer depuis l'envoi : il doit encore
     // appartenir à la seule personne qui invite.
-    const members = await transaction.accountMember.findMany({
+    const members = await tx.accountMember.findMany({
       where: { accountId },
       select: { userId: true, role: true },
     });
@@ -142,17 +145,21 @@ export async function acceptJointRequest(
       throw new Refusal("Ce compte ne peut plus être partagé.");
     }
 
-    await transaction.accountMember.create({
+    await tx.accountMember.create({
       data: { accountId, userId: invitee.id, role: "MEMBER" },
       select: { id: true },
     });
+    const referentId = tagOwner === "INVITEE" ? invitee.id : requesterId;
     // `updateMany` ne renvoie qu'un nombre : aucun champ du compte n'est lu.
-    await transaction.account.updateMany({
-      where: { id: accountId },
-      data: { tagOwnerId: tagOwner === "INVITEE" ? invitee.id : requesterId },
+    await tx.account.updateMany({ where: { id: accountId }, data: { tagOwnerId: referentId } });
+    // Les tags sont privés : ceux de l'autre personne ne doivent pas devenir
+    // visibles avec l'historique. Les tags eux-mêmes sont conservés.
+    await tx.transaction.updateMany({
+      where: { accountId, tag: { userId: { not: referentId } } },
+      data: { tagId: null },
     });
     // Plus aucune autre demande ne doit rester ouverte sur ce compte.
-    await transaction.jointAccountRequest.updateMany({
+    await tx.jointAccountRequest.updateMany({
       where: { accountId, status: JOINT_REQUEST_STATUS.pending },
       data: { status: JOINT_REQUEST_STATUS.cancelled, resolvedAt: now },
     });
@@ -185,6 +192,62 @@ export async function cancelJointRequest(
     data: { status: JOINT_REQUEST_STATUS.cancelled, resolvedAt: now },
   });
   return count === 1 ? { status: "success", message: "Demande annulée." } : failure(REQUEST_UNAVAILABLE);
+}
+
+/**
+ * Retire un membre invité. Le compte redevient personnel et tout ce qui
+ * appartenait à cette personne en est détaché.
+ */
+async function removeGuest(
+  tx: Prisma.TransactionClient,
+  accountId: string,
+  guestId: string,
+): Promise<boolean> {
+  // L'écriture vient en premier : deux ruptures simultanées ne réussissent pas toutes les deux.
+  const { count } = await tx.accountMember.deleteMany({
+    where: { accountId, userId: guestId, role: "MEMBER" },
+  });
+  if (count !== 1) return false;
+
+  // Ses tags sont retirés des opérations (les tags eux-mêmes sont conservés).
+  await tx.transaction.updateMany({
+    where: { accountId, tag: { userId: guestId } },
+    data: { tagId: null },
+  });
+  // Ses règles limitées à ce compte n'ont plus d'objet.
+  await tx.rule.deleteMany({ where: { accountId, userId: guestId } });
+  // Sans référent, les tags du propriétaire s'appliquent de nouveau.
+  await tx.account.updateMany({ where: { id: accountId }, data: { tagOwnerId: null } });
+  return true;
+}
+
+/** La personne invitée quitte le compte joint, sans l'accord du propriétaire. */
+export async function leaveJointAccount(member: Actor, accountId: string): Promise<ActionState> {
+  return runGuarded(async (tx) => {
+    if (!(await removeGuest(tx, accountId, member.id))) {
+      throw new Refusal(JOINT_ACCOUNT_UNAVAILABLE);
+    }
+    return "Vous avez quitté le compte joint.";
+  });
+}
+
+/** Le propriétaire arrête le partage, sans l'accord de la personne invitée. */
+export async function stopSharingAccount(owner: Actor, accountId: string): Promise<ActionState> {
+  return runGuarded(async (tx) => {
+    const guest = await tx.accountMember.findFirst({
+      where: {
+        accountId,
+        role: "MEMBER",
+        // Réservé au propriétaire de ce compte.
+        account: { members: { some: { userId: owner.id, role: "OWNER" } } },
+      },
+      select: { userId: true },
+    });
+    if (!guest || !(await removeGuest(tx, accountId, guest.userId))) {
+      throw new Refusal(JOINT_ACCOUNT_UNAVAILABLE);
+    }
+    return "Le partage est arrêté : le compte est redevenu personnel.";
+  });
 }
 
 /**
