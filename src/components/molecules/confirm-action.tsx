@@ -21,6 +21,8 @@ export interface ConfirmActionProps {
   warning: string;
   confirmLabel: string;
   confirmVariant?: ButtonVariant;
+  /** Texte du bouton qui renonce à l'action. */
+  cancelLabel?: string;
 }
 
 /** Action en deux temps : rien n'est envoyé sans une confirmation explicite. */
@@ -33,6 +35,7 @@ export function ConfirmAction({
   warning,
   confirmLabel,
   confirmVariant = "default",
+  cancelLabel = "Annuler",
 }: ConfirmActionProps) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [state, formAction, isPending] = useActionState(action, initialActionState);
@@ -61,7 +64,7 @@ export function ConfirmAction({
         {confirmLabel}
       </Button>
       <Button type="button" size="lg" variant="ghost" onClick={() => setIsConfirming(false)}>
-        Annuler
+        {cancelLabel}
       </Button>
       <FormMessage state={state} />
     </form>

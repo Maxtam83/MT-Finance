@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { AllowedUser } from "@/components/molecules/allowed-user-row";
 import { AccessManagementCard } from "@/components/organisms/access-management-card";
-import { LinkAccountCard } from "@/components/organisms/link-account-card";
 import { PageTemplate } from "@/components/templates/page-template";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getEnv } from "@/lib/env";
@@ -35,10 +34,9 @@ export default async function AdminPage() {
   const users = await listAllowedUsers();
 
   return (
-    <PageTemplate title="Administration" description="Accès à l'application et comptes joints.">
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+    <PageTemplate title="Administration" description="Accès à l'application.">
+      <div className="max-w-2xl">
         <AccessManagementCard users={users} />
-        <LinkAccountCard />
       </div>
     </PageTemplate>
   );
