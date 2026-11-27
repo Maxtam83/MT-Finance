@@ -1,6 +1,8 @@
 # Mise en production : Vercel + Turso
 
-Objectif : publier l'application sur `https://finance.maxime-tamarin.fr`.
+Objectif : publier l'application sur `https://<domaine>`.
+
+Dans ce document, `<domaine>` désigne le nom de domaine de production, qui n'est volontairement pas écrit dans le dépôt. Remplacez-le par le vôtre.
 
 > **État de cette procédure :** elle n'a pas encore été exécutée sur un vrai projet Vercel ni sur une vraie base Turso. L'application et le script de migration ont été testés en local seulement. Les libellés des tableaux de bord peuvent différer : corrigez ce document lors du premier déploiement.
 
@@ -10,7 +12,7 @@ Objectif : publier l'application sur `https://finance.maxime-tamarin.fr`.
 
 - Le code sur GitHub (`Maxtam83/MT-Finance`)
 - Un compte [Vercel](https://vercel.com) et un compte [Turso](https://turso.tech)
-- L'accès à la zone DNS de `maxime-tamarin.fr`
+- L'accès à la zone DNS de votre domaine
 - Le projet installé en local (voir le [README](../README.md))
 
 Le CLI Turso n'est pas nécessaire.
@@ -61,14 +63,24 @@ npm run key:generate
 
 ## 4. Créer l'application OAuth de production
 
-Une application OAuth GitHub n'accepte qu'une URL de callback : créez-en une **seconde**, réservée à la production.
+Configurez au moins un fournisseur. Dans les deux cas, créez une application **réservée à la production** : elle ne doit jamais accepter d'adresse `localhost`.
+
+### GitHub
+
+Une application OAuth GitHub n'accepte qu'une URL de callback : créez-en une **seconde**.
 
 | Champ | Valeur |
 |---|---|
-| Homepage URL | `https://finance.maxime-tamarin.fr` |
-| Authorization callback URL | `https://finance.maxime-tamarin.fr/api/auth/callback/github` |
+| Homepage URL | `https://<domaine>` |
+| Authorization callback URL | `https://<domaine>/api/auth/callback/github` |
 
-Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamarin.fr/api/auth/callback/google`.
+### Google
+
+Suivez les étapes Google du [README](../README.md#google) en créant un second client **Web application**, avec cette seule adresse dans **Authorized redirect URIs** :
+
+```text
+https://<domaine>/api/auth/callback/google
+```
 
 ## 5. Créer le projet Vercel
 
@@ -84,9 +96,9 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 | `ENCRYPTION_KEY` | Clé de production |
 | `ADMIN_EMAIL` | Email administrateur (voir le README, étape 4) |
 | `BETTER_AUTH_SECRET` | Secret de production |
-| `BETTER_AUTH_URL` | `https://finance.maxime-tamarin.fr` |
-| `GITHUB_CLIENT_ID` | Application de production |
-| `GITHUB_CLIENT_SECRET` | Application de production |
+| `BETTER_AUTH_URL` | `https://<domaine>` |
+| `GITHUB_CLIENT_ID` et `GITHUB_CLIENT_SECRET` | Application GitHub de production, si vous utilisez GitHub |
+| `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` | Client Google de production, si vous utilisez Google |
 
 5. Choisissez pour les fonctions une région proche de celle de la base Turso (réglages du projet, section des fonctions).
 6. Déployez.
@@ -101,15 +113,15 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 
 ## 6. Brancher le domaine
 
-1. Dans le projet Vercel, **Settings → Domains**, ajoutez `finance.maxime-tamarin.fr`.
-2. Chez votre hébergeur DNS, créez l'enregistrement `CNAME` nommé `finance` avec **la valeur affichée par Vercel**.
+1. Dans le projet Vercel, **Settings → Domains**, ajoutez `<domaine>`.
+2. Chez votre hébergeur DNS, créez l'enregistrement demandé par Vercel (pour un sous-domaine, un `CNAME` portant son nom) avec **la valeur affichée par Vercel**.
 3. Attendez que Vercel valide le domaine et le certificat HTTPS.
 
 ## 7. Vérifier la mise en ligne
 
 - [ ] `/login` s'affiche en HTTPS.
 - [ ] La connexion avec le compte administrateur affiche le rôle `ADMIN`.
-- [ ] Un compte GitHub absent de la liste blanche est refusé avec un message clair.
+- [ ] Un compte absent de la liste blanche est refusé avec un message clair.
 - [ ] Après retrait d'une adresse dans l'administration, la personne est déconnectée.
 - [ ] L'administration ne propose aucune action sur les comptes.
 - [ ] La personne invitée peut quitter un compte joint et le propriétaire peut arrêter le partage (à vérifier quand la création de comptes existera).
@@ -122,8 +134,14 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 - [ ] L'application s'installe sur mobile et s'ouvre sans la barre du navigateur.
 - [ ] Les en-têtes de sécurité sont présents, dont `Content-Security-Policy` avec un jeton qui change à chaque appel :
 
+Remplacez la valeur de la première commande par votre domaine :
+
 ```powershell
-(Invoke-WebRequest -Uri https://finance.maxime-tamarin.fr/login -Method Head -UseBasicParsing).Headers
+$domaine = "votre-domaine.exemple"
+```
+
+```powershell
+(Invoke-WebRequest -Uri "https://$domaine/login" -Method Head -UseBasicParsing).Headers
 ```
 
 Une passkey est liée à son domaine : celles créées sur `localhost` ne fonctionnent pas en production, et un changement de domaine oblige à les recréer.

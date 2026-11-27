@@ -23,7 +23,7 @@ Application web de gestion de finances personnelles et de patrimoine : interface
 
 - **Node.js 24.x** et npm ([nodejs.org](https://nodejs.org))
 - **git**
-- Un compte **GitHub**, pour créer l'application de connexion
+- Un compte **GitHub** ou **Google**, pour créer l'accès de connexion
 
 Aucun serveur de base de données n'est à installer : en local, la base est le fichier `dev.db`.
 
@@ -59,7 +59,11 @@ Générez **deux** valeurs différentes, pour `ENCRYPTION_KEY` et `BETTER_AUTH_S
 npm run key:generate
 ```
 
-### 3. Créer l'application OAuth GitHub de développement
+### 3. Créer l'accès de connexion de développement
+
+Configurez au moins l'un des deux fournisseurs. Laissez vides les variables de celui que vous n'utilisez pas.
+
+#### GitHub
 
 Sur GitHub : **Settings → Developer settings → OAuth Apps → New OAuth App**.
 
@@ -70,14 +74,31 @@ Sur GitHub : **Settings → Developer settings → OAuth Apps → New OAuth App*
 
 Copiez le *Client ID* dans `GITHUB_CLIENT_ID`, puis générez un *client secret* pour `GITHUB_CLIENT_SECRET`.
 
+#### Google
+
+Dans la console Google Cloud, ouvrez [Google Auth Platform → Clients](https://console.developers.google.com/auth/clients).
+
+1. Créez un client de type **Web application** (« Application Web »).
+2. Dans **Authorized redirect URIs** (« URI de redirection autorisés »), ajoutez exactement :
+
+   ```text
+   http://localhost:3000/api/auth/callback/google
+   ```
+
+   Ne la placez pas dans **Authorized JavaScript origins** (« Origines JavaScript autorisées ») : l'application n'en a pas besoin.
+3. Copiez l'identifiant dans `GOOGLE_CLIENT_ID` et le secret dans `GOOGLE_CLIENT_SECRET`. Google n'affiche le secret qu'à la création du client.
+4. Redémarrez `npm run dev` après avoir modifié `.env`.
+
+Selon Google, un changement de ces réglages peut mettre **de 5 minutes à quelques heures** à s'appliquer. L'application ne demande que l'adresse email et le profil : dans ce cas, un projet au statut « Testing » n'impose pas de déclarer des utilisateurs de test.
+
 ### 4. Définir l'administrateur
 
-`ADMIN_EMAIL` doit être l'adresse que GitHub transmet à l'application :
+`ADMIN_EMAIL` doit être l'adresse que le fournisseur transmet à l'application. Avec **GitHub** :
 
 - si votre profil GitHub affiche un **email public**, c'est celui-là ;
 - sinon, c'est votre **email principal**.
 
-Dans les deux cas, l'adresse doit être vérifiée chez GitHub.
+Avec **Google**, c'est l'adresse du compte Google utilisé pour vous connecter. Dans tous les cas, l'adresse doit être vérifiée chez le fournisseur.
 
 ### 5. Créer la base locale et lancer l'application
 
@@ -97,7 +118,7 @@ Relancez `npm install` puis `npm run db:setup` : les nouvelles migrations sont a
 
 ### Premier accès
 
-1. Connectez-vous avec GitHub : le compte `ADMIN_EMAIL` reçoit le rôle `ADMIN`.
+1. Connectez-vous avec GitHub ou Google : le compte `ADMIN_EMAIL` reçoit le rôle `ADMIN`.
 2. Dans **Administration**, autorisez les adresses des autres personnes.
 3. Sur le **Dashboard**, ajoutez si vous le souhaitez une passkey pour les connexions suivantes.
 
@@ -320,8 +341,8 @@ npm test
 | Symptôme | Cause probable |
 |---|---|
 | `Variables d'environnement invalides` | `.env` incomplet : le message nomme chaque variable en cause |
-| GitHub signale une erreur de `redirect_uri` | L'URL de callback ne correspond pas à `BETTER_AUTH_URL` |
-| L'administrateur est refusé | `ADMIN_EMAIL` diffère de l'adresse transmise par GitHub (voir l'étape 4) |
+| Erreur `redirect_uri_mismatch` (Google) ou `redirect_uri` (GitHub) | L'adresse déclarée chez le fournisseur n'est pas **exactement** `<BETTER_AUTH_URL>/api/auth/callback/google` (ou `/github`) : `http` ou `https`, port, casse et barre finale compris. Chez Google, vérifiez qu'elle est dans **Authorized redirect URIs** du client dont l'identifiant figure dans `.env`, puis patientez : le changement n'est pas toujours immédiat |
+| L'administrateur est refusé | `ADMIN_EMAIL` diffère de l'adresse transmise par le fournisseur (voir l'étape 4) |
 | Erreur `429` à la connexion | Limite de débit en production : attendez quelques secondes |
 | Impossible d'ajouter une passkey | La session est trop ancienne : reconnectez-vous |
 | Erreur `no such table` après une mise à jour | Lancez `npm run db:setup` |
