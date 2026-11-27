@@ -147,6 +147,74 @@
   -webkit-text-fill-color: transparent;
 }
 
+/*
+ * Animation d'ouverture (composant SplashScreen) : les trois traits du « M »
+ * montent l'un après l'autre, le « T » se trace de bas en haut, puis l'écran
+ * s'efface. Durée totale : 2 secondes.
+ */
+@keyframes splash-letter-m {
+  from {
+    opacity: 0;
+    transform: translateY(110px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splash-letter-t {
+  from {
+    clip-path: inset(100% 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes splash-exit {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background);
+  /* Ne bloque jamais un clic, même si l'animation ne se jouait pas. */
+  pointer-events: none;
+  animation: splash-exit 0.4s ease-in 1.6s forwards;
+}
+
+.splash .logo-letter-m > path {
+  animation: splash-letter-m 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.splash .logo-letter-m > path:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.splash .logo-letter-m > path:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.splash .logo-letter-t {
+  animation: splash-letter-t 0.8s cubic-bezier(0.65, 0, 0.35, 1) 0.45s backwards;
+}
+
+/* Les personnes qui limitent les animations voient directement l'application. */
+@media (prefers-reduced-motion: reduce) {
+  .splash {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

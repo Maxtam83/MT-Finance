@@ -132,6 +132,7 @@ https://<domaine>/api/auth/callback/google
 - [ ] La police et les thèmes sombre et clair s'affichent correctement.
 - [ ] Une passkey peut être ajoutée puis utilisée pour se connecter. **Ce parcours n'a pas encore été testé avec un véritable appareil.**
 - [ ] L'application s'installe sur mobile et s'ouvre sans la barre du navigateur.
+- [ ] L'icône installée montre le logo en entier, et l'animation d'ouverture se joue puis disparaît. **Ni l'icône installée ni l'animation n'ont encore été essayées sur un téléphone.**
 - [ ] Les en-têtes de sécurité sont présents, dont `Content-Security-Policy` avec un jeton qui change à chaque appel :
 
 Remplacez la valeur de la première commande par votre domaine :

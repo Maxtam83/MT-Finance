@@ -14,6 +14,7 @@ import { ReceivedRequestsSection } from "@/components/organisms/received-request
 import { SessionCard } from "@/components/organisms/session-card";
 import { ShareAccountForm } from "@/components/organisms/share-account-form";
 import { SignInPanel } from "@/components/organisms/sign-in-panel";
+import { SplashScreen } from "@/components/organisms/splash-screen";
 import type { AccountSummary, ReceivedRequest } from "@/lib/joint-accounts/queries";
 
 const mocks = vi.hoisted(() => ({
@@ -252,6 +253,17 @@ describe("demandes en attente dans la navigation", () => {
     ).toHaveLength(2);
     expect(screen.getAllByText("2")).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: "Import" })).toHaveLength(2);
+  });
+});
+
+describe("animation d'ouverture", () => {
+  test("montre le logo sans le faire lire par les lecteurs d'écran", () => {
+    const { container } = render(<SplashScreen />);
+
+    const splash = container.querySelector("[data-slot='splash-screen']");
+    expect(splash).toHaveClass("splash");
+    expect(splash).toHaveAttribute("aria-hidden", "true");
+    expect(splash?.querySelector("[data-slot='brand-mark']")).not.toBeNull();
   });
 });
 

@@ -91,7 +91,8 @@ describe("affichage", () => {
       </>,
     );
 
-    expect(screen.getByText("Finance")).toBeInTheDocument();
+    expect(screen.getByText("Finance")).toHaveTextContent("MT Finance");
+    expect(document.querySelector("[data-slot='brand-mark']")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByRole("heading", { level: 1, name: "Page" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Section" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Carte" })).toBeInTheDocument();

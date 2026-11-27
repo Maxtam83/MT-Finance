@@ -235,6 +235,22 @@ Il reprend l'identité de [maxime-tamarin.fr](https://maxime-tamarin.fr) ; tous 
 
 Le thème **sombre** est celui du site et s'affiche par défaut. Le thème **clair** en est dérivé : le site n'en propose pas, et le bleu y est assombri pour rester lisible.
 
+### Logo et animation d'ouverture
+
+| Élément | Fichier |
+|---|---|
+| Logo dans l'application | `src/components/atoms/brand-mark.tsx` (SVG intégré) |
+| Favicon | `src/app/icon.svg` |
+| Icône Apple et icônes de la PWA | `src/app/apple-icon.png`, `public/icons/` |
+
+Les icônes PNG montrent le logo sur le fond sombre `#06090d`. Après un changement de logo, remplacez **tous** ces fichiers. La version « maskable » doit garder une marge, car les téléphones en rognent les bords.
+
+À l'ouverture, `SplashScreen` anime le logo pendant 2 secondes : le « M » monte, le « T » se trace, puis l'écran s'efface (styles dans `src/app/globals.css`). L'animation :
+
+- se joue à chaque chargement complet (ouverture, actualisation, retour après connexion), mais pas en changeant de page dans l'application ;
+- fonctionne en CSS seul, sans bloquer les clics ;
+- est désactivée si le système demande de **réduire les animations**.
+
 ## Sécurité
 
 ### Accès

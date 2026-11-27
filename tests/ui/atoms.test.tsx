@@ -100,6 +100,36 @@ describe("atomes", () => {
     expect(container.querySelectorAll(":scope > [aria-hidden='true']")).toHaveLength(3);
   });
 
+  test("donnent à chaque logo son propre dégradé", () => {
+    const { container } = render(
+      <>
+        <BrandMark />
+        <BrandMark className="h-32" />
+      </>,
+    );
+
+    const logos = [...container.querySelectorAll("[data-slot='brand-mark']")];
+    const gradients = logos.map((logo) => logo.querySelector("linearGradient")?.id);
+
+    expect(new Set(gradients).size).toBe(2);
+    logos.forEach((logo, index) => {
+      expect(logo.querySelector("path[fill^='url']")).toHaveAttribute(
+        "fill",
+        `url(#${gradients[index]})`,
+      );
+    });
+    expect(logos[1]).toHaveClass("h-32");
+  });
+
+  test("dessinent le logo en deux lettres, animables séparément", () => {
+    const { container } = render(<BrandMark />);
+
+    expect(container.querySelectorAll(".logo-letter-m > path")).toHaveLength(3);
+    expect(container.querySelectorAll(".logo-letter-t > path")).toHaveLength(5);
+    // Aucun style ni script intégré : la politique de sécurité les bloquerait.
+    expect(container.querySelector("style, script, [style]")).toBeNull();
+  });
+
   test("annoncent le résultat d'un formulaire", () => {
     const { container, rerender } = render(<FormMessage state={{ status: "idle" }} />);
     expect(container.querySelector("p")).toBeEmptyDOMElement();

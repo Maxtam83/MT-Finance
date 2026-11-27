@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { BrandMark } from "@/components/atoms/brand-mark";
 import { HaloBackground } from "@/components/atoms/halo-background";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
 
@@ -13,7 +12,6 @@ export function AuthTemplate({ children }: { children: ReactNode }) {
       </div>
 
       <div className="flex max-w-xl flex-col items-center gap-5 text-center">
-        <BrandMark />
         <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">
           MT <span className="text-gradient">Finance</span>
         </h1>

@@ -12,6 +12,7 @@ import DashboardPage from "@/app/(app)/page";
 import RulesPage from "@/app/(app)/regles/page";
 import LoginPage from "@/app/(auth)/login/page";
 import RootLayout, { viewport } from "@/app/layout";
+import { SplashScreen } from "@/components/organisms/splash-screen";
 import { AppShell } from "@/components/templates/app-shell";
 import { AuthTemplate } from "@/components/templates/auth-template";
 import { PageTemplate } from "@/components/templates/page-template";
@@ -104,6 +105,13 @@ describe("gabarits", () => {
     expect(screen.getByRole("heading", { name: "Titre" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "MT Finance" })).toBeInTheDocument();
     expect(screen.getByText("formulaire")).toBeInTheDocument();
+  });
+
+  test("n'affichent pas de logo au-dessus du titre de connexion", () => {
+    const { container } = render(<AuthTemplate>formulaire</AuthTemplate>);
+
+    expect(container.querySelector("[data-slot='brand-mark']")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "MT Finance" })).toBeInTheDocument();
   });
 });
 
@@ -253,6 +261,16 @@ describe("mise en page racine", () => {
       expect(tree.props.children.props.children.props.nonce).toBe(nonce ?? undefined);
     },
   );
+
+  test("joue l'animation d'ouverture avant le contenu", async () => {
+    const tree = (await RootLayout({ children: "contenu" })) as ReactElement<{
+      children: ReactElement<{ children: ReactElement<{ children: [ReactElement, ReactNode] }> }>;
+    }>;
+
+    const [splash, content] = tree.props.children.props.children.props.children;
+    expect(splash.type).toBe(SplashScreen);
+    expect(content).toBe("contenu");
+  });
 
   test("déclare la langue, la police et les couleurs du thème", async () => {
     const tree = await RootLayout({ children: "contenu" });

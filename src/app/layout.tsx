@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
+import { SplashScreen } from "@/components/organisms/splash-screen";
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
 
@@ -35,7 +36,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="fr" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
-        <ThemeProvider nonce={nonce}>{children}</ThemeProvider>
+        <ThemeProvider nonce={nonce}>
+          <SplashScreen />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
