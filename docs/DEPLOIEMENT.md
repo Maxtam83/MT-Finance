@@ -4,6 +4,8 @@ Objectif : publier l'application sur `https://finance.maxime-tamarin.fr`.
 
 > **État de cette procédure :** elle n'a pas encore été exécutée sur un vrai projet Vercel ni sur une vraie base Turso. L'application et le script de migration ont été testés en local seulement. Les libellés des tableaux de bord peuvent différer : corrigez ce document lors du premier déploiement.
 
+> **Avant d'enregistrer de vraies données financières,** lisez les [risques connus](../README.md#risques-connus-à-traiter).
+
 ## Prérequis
 
 - Le code sur GitHub (`Maxtam83/MT-Finance`)
@@ -39,6 +41,8 @@ Vérifiez l'adresse affichée après « Base cible », puis appliquez :
 ```powershell
 npm run db:deploy:turso
 ```
+
+Sur une base neuve, deux migrations sont attendues : `…_init` puis `…_joint_account_requests`.
 
 Le script joue les migrations manquantes dans l'ordre, chacune dans une transaction, et les note dans la table `_app_migrations`. Il s'arrête à la première erreur et refuse toute migration modifiée après son application. Les migrations ne sont **jamais** lancées automatiquement par Vercel.
 
@@ -103,6 +107,9 @@ Pour Google (facultatif), l'URI de redirection est `https://finance.maxime-tamar
 - [ ] La connexion avec le compte administrateur affiche le rôle `ADMIN`.
 - [ ] Un compte GitHub absent de la liste blanche est refusé avec un message clair.
 - [ ] Après retrait d'une adresse dans l'administration, la personne est déconnectée.
+- [ ] L'administration ne propose aucune action sur les comptes.
+- [ ] Une demande de compte joint n'ouvre aucun accès avant la validation de la personne invitée (à vérifier quand la création de comptes existera).
+- [ ] La police et les thèmes sombre et clair s'affichent correctement.
 - [ ] Une passkey peut être ajoutée puis utilisée pour se connecter. **Ce parcours n'a pas encore été testé avec un véritable appareil.**
 - [ ] L'application s'installe sur mobile et s'ouvre sans la barre du navigateur.
 - [ ] Les en-têtes de sécurité sont présents :
