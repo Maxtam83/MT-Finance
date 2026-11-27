@@ -102,6 +102,12 @@ describe("liste blanche", () => {
 });
 
 describe("demande de compte joint", () => {
+  test("prévient du détachement des tags avant l'envoi", () => {
+    render(<ShareAccountForm accountId="c1" />);
+
+    expect(screen.getByText(/vos tags seront détachés/)).toHaveTextContent("sans retour possible");
+  });
+
   /** Remplit puis envoie la demande, avec ou sans accord. */
   const submit = async ({ consent }: { consent: boolean }) => {
     mocks.requestJointAccount.mockResolvedValue({ status: "success", message: "Envoyée." });
@@ -191,6 +197,10 @@ describe("demandes reçues", () => {
     expect(screen.getByText("Compte partagé")).toBeInTheDocument();
     expect(screen.getByText(expected)).toBeInTheDocument();
     expect(screen.getByText(/accéderez à tout l'historique/)).toBeInTheDocument();
+    // La personne invitée est prévenue du détachement avant de valider.
+    expect(screen.queryByText(/seront détachés, sans retour possible/) !== null).toBe(
+      tagOwner === "INVITEE",
+    );
     expect(screen.getByRole("button", { name: "Accepter" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refuser" })).toBeInTheDocument();
   });

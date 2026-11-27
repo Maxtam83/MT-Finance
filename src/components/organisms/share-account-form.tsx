@@ -34,7 +34,7 @@ export function ShareAccountForm({ accountId }: { accountId: string }) {
         legend="Référent des tags"
         options={TAG_OWNER_OPTIONS}
         defaultValue="REQUESTER"
-        hint="Les tags de cette personne s'appliqueront au compte joint."
+        hint="Les tags de cette personne s'appliqueront au compte joint. Si vous désignez la personne invitée, vos tags seront détachés des opérations de ce compte à sa validation, sans retour possible."
       />
       <ConsentCheckbox
         name="consent"

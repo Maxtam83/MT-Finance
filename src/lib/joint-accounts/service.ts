@@ -45,7 +45,7 @@ export function pendingRequestFilter(now: Date) {
 
 /** Exécute une transaction ; un `Refusal` l'annule et devient un message d'erreur. */
 async function runGuarded(
-  work: (transaction: Prisma.TransactionClient) => Promise<string>,
+  work: (tx: Prisma.TransactionClient) => Promise<string>,
 ): Promise<ActionState> {
   try {
     return { status: "success", message: await prisma.$transaction(work) };
@@ -65,8 +65,8 @@ export async function createJointRequest(
     return failure("Vous ne pouvez pas vous inviter vous-même.");
   }
 
-  return runGuarded(async (transaction) => {
-    const account = await transaction.account.findFirst({
+  return runGuarded(async (tx) => {
+    const account = await tx.account.findFirst({
       where: { id: input.accountId, members: { some: { userId: requester.id, role: "OWNER" } } },
       select: { _count: { select: { members: true } } },
     });
@@ -76,7 +76,7 @@ export async function createJointRequest(
       throw new Refusal("Ce compte est déjà un compte joint.");
     }
 
-    const pending = await transaction.jointAccountRequest.count({
+    const pending = await tx.jointAccountRequest.count({
       where: { accountId: input.accountId, ...pendingRequestFilter(now) },
     });
     if (pending > 0) {
@@ -85,7 +85,7 @@ export async function createJointRequest(
       );
     }
 
-    await transaction.jointAccountRequest.create({
+    await tx.jointAccountRequest.create({
       data: {
         ...input,
         requesterId: requester.id,
@@ -117,23 +117,23 @@ export async function acceptJointRequest(
   // La personne qui invite doit toujours être autorisée au moment de la validation.
   if (!(await isEmailAllowed(request.requester.email))) return failure(REQUEST_UNAVAILABLE);
 
-  return runGuarded(async (transaction) => {
+  return runGuarded(async (tx) => {
     // L'écriture ouvre la transaction : la demande ne peut être consommée qu'une fois.
-    const claimed = await transaction.jointAccountRequest.updateMany({
+    const claimed = await tx.jointAccountRequest.updateMany({
       where: ownRequest,
       data: { status: JOINT_REQUEST_STATUS.accepted, resolvedAt: now },
     });
     if (claimed.count !== 1) throw new Refusal(REQUEST_UNAVAILABLE);
 
     const { accountId, requesterId, tagOwner } =
-      await transaction.jointAccountRequest.findUniqueOrThrow({
+      await tx.jointAccountRequest.findUniqueOrThrow({
         where: { id: requestId },
         select: { accountId: true, requesterId: true, tagOwner: true },
       });
 
     // La situation du compte a pu changer depuis l'envoi : il doit encore
     // appartenir à la seule personne qui invite.
-    const members = await transaction.accountMember.findMany({
+    const members = await tx.accountMember.findMany({
       where: { accountId },
       select: { userId: true, role: true },
     });
@@ -142,17 +142,21 @@ export async function acceptJointRequest(
       throw new Refusal("Ce compte ne peut plus être partagé.");
     }
 
-    await transaction.accountMember.create({
+    await tx.accountMember.create({
       data: { accountId, userId: invitee.id, role: "MEMBER" },
       select: { id: true },
     });
+    const referentId = tagOwner === "INVITEE" ? invitee.id : requesterId;
     // `updateMany` ne renvoie qu'un nombre : aucun champ du compte n'est lu.
-    await transaction.account.updateMany({
-      where: { id: accountId },
-      data: { tagOwnerId: tagOwner === "INVITEE" ? invitee.id : requesterId },
+    await tx.account.updateMany({ where: { id: accountId }, data: { tagOwnerId: referentId } });
+    // Les tags sont privés : ceux de l'autre personne ne doivent pas devenir
+    // visibles avec l'historique. Les tags eux-mêmes sont conservés.
+    await tx.transaction.updateMany({
+      where: { accountId, tag: { userId: { not: referentId } } },
+      data: { tagId: null },
     });
     // Plus aucune autre demande ne doit rester ouverte sur ce compte.
-    await transaction.jointAccountRequest.updateMany({
+    await tx.jointAccountRequest.updateMany({
       where: { accountId, status: JOINT_REQUEST_STATUS.pending },
       data: { status: JOINT_REQUEST_STATUS.cancelled, resolvedAt: now },
     });

@@ -34,6 +34,11 @@ export function ReceivedRequestCard({ request }: { request: ReceivedRequest }) {
           En acceptant, vous accéderez à tout l&apos;historique de ce compte et à ses futures
           opérations. N&apos;acceptez que si vous connaissez cette personne.
         </p>
+        <p className="text-muted-foreground">
+          {tagOwner === "INVITEE"
+            ? `En acceptant, vos tags s'appliqueront à ce compte. Ceux que ${requesterEmail} a posés sur ses opérations seront détachés, sans retour possible.`
+            : `En acceptant, les tags de ${requesterEmail} s'appliqueront à ce compte.`}
+        </p>
         <RequestDecision requestId={id} />
       </CardContent>
     </Card>

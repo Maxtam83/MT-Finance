@@ -249,6 +249,78 @@ describe("validation par la personne invitée", () => {
   });
 });
 
+/** Pose un tag de la personne donnée sur une nouvelle opération du compte. */
+async function addTaggedOperation(userId: string, accountId = ACCOUNT_ID): Promise<string> {
+  const tag = await prisma.tag.create({
+    data: { userId, name: "Privé", color: "#000000", nature: "PLEASURE" },
+  });
+  const operation = await prisma.transaction.create({
+    data: {
+      accountId,
+      amount: -1250,
+      date: new Date(),
+      type: "EXPENSE",
+      status: "MANUAL",
+      rawLabel: encrypt("Libellé fictif"),
+      tagId: tag.id,
+    },
+  });
+  return operation.id;
+}
+
+/** Tag actuellement posé sur une opération. */
+const tagOf = async (operationId: string) =>
+  (await prisma.transaction.findUniqueOrThrow({ where: { id: operationId } })).tagId;
+
+describe("tags privés à l'activation", () => {
+  beforeEach(async () => {
+    await prisma.tag.deleteMany();
+  });
+
+  test.each([
+    ["REQUESTER" as const, "mallory" as const, "alice" as const],
+    ["INVITEE" as const, "alice" as const, "mallory" as const],
+  ])(
+    "référent « %s » : détache les tags de %s et garde ceux de %s",
+    async (tagOwner, removed, kept) => {
+      const hidden = await addTaggedOperation(people[removed].id);
+      const visible = await addTaggedOperation(people[kept].id);
+      await invite(people.mallory.email, tagOwner);
+
+      await service.acceptJointRequest(people.mallory, await lastRequestId());
+
+      expect(await tagOf(hidden)).toBeNull();
+      expect(await tagOf(visible)).not.toBeNull();
+      // Les tags et les opérations sont conservés.
+      expect(await prisma.tag.count()).toBe(2);
+      expect(await prisma.transaction.count({ where: { accountId: ACCOUNT_ID } })).toBe(2);
+    },
+  );
+
+  test("ne touche pas aux autres comptes de la même personne", async () => {
+    const other = await prisma.account.create({
+      data: { name: "x", type: "SAVINGS", scope: "PERSONAL" },
+    });
+    const elsewhere = await addTaggedOperation(people.alice.id, other.id);
+    await invite(people.mallory.email, "INVITEE");
+
+    await service.acceptJointRequest(people.mallory, await lastRequestId());
+
+    expect(await tagOf(elsewhere)).not.toBeNull();
+  });
+
+  test("ne détache rien quand la validation est refusée", async () => {
+    const operation = await addTaggedOperation(people.alice.id);
+    await invite(people.mallory.email, "INVITEE");
+    const requestId = await lastRequestId();
+    await prisma.accountMember.updateMany({ data: { role: "MEMBER" } });
+
+    await service.acceptJointRequest(people.mallory, requestId);
+
+    expect(await tagOf(operation)).not.toBeNull();
+  });
+});
+
 describe("refus et annulation", () => {
   test("seule la personne invitée peut refuser, une seule fois", async () => {
     await invite();
