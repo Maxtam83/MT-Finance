@@ -22,6 +22,14 @@ describe("configuration Next.js", () => {
     );
     expect(nextConfig.poweredByHeader).toBe(false);
   });
+
+  test("interdit à l'API de charger ou d'exécuter quoi que ce soit", async () => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+
+    expect(rules.find((rule) => rule.source === "/api/:path*")?.headers).toEqual([
+      { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'" },
+    ]);
+  });
 });
 
 describe("manifeste PWA", () => {

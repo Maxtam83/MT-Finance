@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
@@ -27,11 +28,14 @@ export const viewport: Viewport = {
 };
 
 /** Mise en page racine : police, langue et thème. */
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  // Lire cet en-tête impose un rendu à chaque requête : le jeton change à chaque fois.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="fr" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider nonce={nonce}>{children}</ThemeProvider>
       </body>
     </html>
   );
