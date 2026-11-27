@@ -1,7 +1,6 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from "node:crypto";
-// Extension `.ts` explicite : ce module est aussi exécuté par `node --test`.
-import { getEnv } from "./env.ts";
+import { getEnv } from "@/lib/env";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
@@ -10,10 +9,12 @@ const AUTH_TAG_BYTES = 16;
 const PAYLOAD_PATTERN = /^([0-9a-f]{24}):([0-9a-f]{32}):((?:[0-9a-f]{2})*)$/i;
 const IMPORT_HASH_CONTEXT = "mt-finance:import-hash:v1";
 
+/** Clé AES-256 décodée depuis l'environnement. */
 function getEncryptionKey(): Buffer {
   return Buffer.from(getEnv().ENCRYPTION_KEY, "hex");
 }
 
+/** Chiffre un texte au format `ivHex:authTagHex:cipherTextHex`. */
 export function encrypt(plainText: string): string {
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv(ALGORITHM, getEncryptionKey(), iv, {

@@ -2,19 +2,22 @@
 
 Application web de gestion de finances personnelles et de patrimoine : interface complète sur ordinateur, PWA synthétique sur mobile. Cible de production : `finance.maxime-tamarin.fr`.
 
-**Lot 1 (socle) :** base de données, chiffrement AES-256-GCM, authentification sur liste blanche, page d'administration et manifeste PWA. Les sections Comptes, Règles & Tags, Import et Investissements sont des pages d'attente.
+**Lot 1 (socle) :** base de données, chiffrement AES-256-GCM, authentification sur liste blanche, administration des accès, compte joint à double validation et manifeste PWA. La création de comptes n'existe pas encore ; les sections Règles & Tags, Import et Investissements sont des pages d'attente.
 
-Mise en production : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+- Mise en production : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
+- Sécurité et risques connus : [Sécurité](#sécurité)
+- Règles pour contribuer : [Conventions de développement](#conventions-de-développement)
 
 ## Stack
 
 | Domaine | Choix |
 |---|---|
 | Framework | Next.js 16 (App Router), React 19, TypeScript 6 strict |
-| Interface | Tailwind CSS 4, shadcn/ui (Base UI), thème clair et sombre |
+| Interface | Tailwind CSS 4, shadcn/ui (Base UI), Atomic Design, thèmes sombre et clair |
 | Données | Prisma 7, SQLite en local, Turso (libSQL) en production |
 | Authentification | Better-Auth : GitHub, Google (facultatif), passkeys |
 | Validation | Zod 4 (variables d'environnement et Server Actions) |
+| Qualité | Vitest, Testing Library, ESLint |
 
 ## Prérequis
 
@@ -88,6 +91,10 @@ npm run dev
 
 Ouvrez <http://localhost:3000>. Utilisez bien `localhost` (et non `127.0.0.1` ou une adresse IP) : la connexion et les passkeys sont liées à `BETTER_AUTH_URL`. Si vous changez de port, adaptez cette variable et l'application GitHub.
 
+### Après une mise à jour du code
+
+Relancez `npm install` puis `npm run db:setup` : les nouvelles migrations sont appliquées à votre base locale sans effacer ses données.
+
 ### Premier accès
 
 1. Connectez-vous avec GitHub : le compte `ADMIN_EMAIL` reçoit le rôle `ADMIN`.
@@ -116,8 +123,9 @@ Elles sont validées au démarrage : l'application refuse de démarrer si une va
 | `npm run dev` | Serveur de développement |
 | `npm run build` puis `npm run start` | Version de production en local |
 | `npm run typecheck` | Génère les types de routes puis lance `tsc --noEmit` |
-| `npm run lint` | ESLint |
-| `npm test` | Tests du chiffrement et de la validation d'environnement |
+| `npm run lint` | ESLint, dont les règles de commentaires et de découpage atomique |
+| `npm test` | Tous les tests, avec une couverture obligatoire de 100 % |
+| `npm run test:watch` | Tests relancés à chaque modification |
 | `npm run db:setup` | Applique les migrations à la base locale et génère le client |
 | `npm run db:migrate` | Crée une migration après une modification du schéma |
 | `npm run db:generate` | Régénère le client Prisma |
@@ -125,6 +133,16 @@ Elles sont validées au démarrage : l'application refuse de démarrer si une va
 | `npm run db:deploy:turso:check` | Liste les migrations en attente sur Turso |
 | `npm run db:deploy:turso` | Applique les migrations sur Turso |
 | `npm run key:generate` | Génère un secret aléatoire de 32 octets |
+
+## Tests
+
+| Dossier | Contenu |
+|---|---|
+| `tests/unit/` | Logique pure, chiffrement, validation, configuration |
+| `tests/integration/` | Authentification, contrôles d'accès, Server Actions, compte joint, migrations, sur des bases SQLite jetables |
+| `tests/ui/` | Composants, gabarits et pages (Testing Library, jsdom) |
+
+Les réponses de GitHub sont simulées : aucun test n'appelle un service externe et aucun identifiant réel n'est nécessaire. Le rapport détaillé est écrit dans `coverage/`.
 
 ## Base de données
 
@@ -153,28 +171,76 @@ Pour repartir d'une base vide, arrêtez le serveur, supprimez `dev.db` (**les do
 ## Structure
 
 ```text
-prisma/               schéma et migrations SQL
-scripts/db-deploy.ts  envoi des migrations vers Turso
+prisma/                 schéma et migrations SQL
+scripts/
+  db-deploy.ts          point d'entrée de l'envoi vers Turso
+  lib/migrations.ts     logique d'application des migrations
 src/
-  app/                pages : (auth)/login, (app)/ protégée, API d'authentification, manifeste
-  actions/            Server Actions
-  components/         ui/ (shadcn), layout/, auth/, admin/
-  lib/                env, crypto, prisma, auth/, validations/
-  instrumentation.ts  validation de l'environnement au démarrage
-tests/                tests `node:test`
-docs/                 documentation de mise en production
+  app/                  pages : (auth)/login, (app)/ protégée, API d'authentification, manifeste
+  actions/              Server Actions
+  components/           atoms/, molecules/, organisms/, templates/
+  hooks/                hooks React
+  providers/            fournisseurs de contexte (thème)
+  lib/                  env, crypto, prisma, auth/, joint-accounts/, validations/
+  instrumentation.ts    validation de l'environnement au démarrage
+tests/                  unit/, integration/, ui/, helpers/
+docs/                   documentation de mise en production
 ```
+
+## Interface
+
+### Découpage atomique
+
+| Couche | Rôle | Peut importer |
+|---|---|---|
+| `atoms/` | Éléments de base (dont les composants shadcn/ui) | des atomes |
+| `molecules/` | Petits assemblages à une seule fonction | atomes, molécules |
+| `organisms/` | Sections complètes | atomes, molécules, organismes |
+| `templates/` | Structure d'une page | toutes les couches précédentes |
+
+Les pages de `src/app/` lisent les données et composent organismes et gabarits. ESLint bloque tout import vers une couche supérieure. `components.json` place les nouveaux composants shadcn dans `atoms/`.
+
+### Design system
+
+Il reprend l'identité de [maxime-tamarin.fr](https://maxime-tamarin.fr) ; tous les réglages sont dans `src/app/globals.css`.
+
+| Élément | Valeur |
+|---|---|
+| Fond et surface (sombre) | `#06090d`, `#0c1218` |
+| Accents | bleu `#0476fb` / `#1085ec`, ardoise `#37555f` |
+| Police | Inter, hébergée avec l'application |
+| Style | panneaux en verre (`glass`), halos, boutons en pilule, titres très gras, dégradé (`text-gradient`) |
+
+Le thème **sombre** est celui du site et s'affiche par défaut. Le thème **clair** en est dérivé : le site n'en propose pas, et le bleu y est assombri pour rester lisible.
 
 ## Sécurité
 
 ### Accès
 
 - **Inscription fermée :** seuls `ADMIN_EMAIL` et les adresses de `AllowedEmail` peuvent créer un compte. L'email doit être vérifié par le fournisseur.
-- La liste blanche est revérifiée **à chaque nouvelle session** (OAuth ou passkey) et **à chaque requête protégée**. Retirer une adresse dans l'administration ferme aussi ses sessions.
-- Chaque page et Server Action protégée appelle `requireAuth()` ou `requireAdmin()` (`src/lib/auth/guards.ts`). Un layout ou le masquage d'un lien ne suffisent pas : **appliquez cette règle à tout nouveau code.**
+- La liste blanche est revérifiée **à chaque nouvelle session** (OAuth ou passkey) et **à chaque requête protégée**. Retirer une adresse ferme ses sessions et annule ses demandes de compte joint.
+- Chaque page et Server Action protégée appelle `requireAuth()` ou `requireAdmin()` (`src/lib/auth/guards.ts`). Un layout ou le masquage d'un lien ne suffisent pas.
+- L'administrateur gère uniquement la liste blanche : il n'a aucun pouvoir sur les comptes ni sur leur partage.
 - Les jetons OAuth sont chiffrés en base avec une clé liée à `BETTER_AUTH_SECRET`.
 - En-têtes HTTP : `X-Frame-Options`, `X-Content-Type-Options` et `Referrer-Policy` (`next.config.ts`).
-- En production, Better-Auth limite le débit (par exemple 3 demandes de connexion par 10 secondes). Ce compteur est en mémoire : sur Vercel, il n'est pas partagé entre les instances.
+
+### Compte joint
+
+Un compte ne devient joint qu'avec **la validation des deux personnes**, chacune depuis sa propre session :
+
+1. le propriétaire envoie une demande depuis **Comptes** : adresse de l'autre personne, référent des tags et accord explicite ;
+2. la personne invitée voit le nom et le type du compte, l'auteur et le référent, puis accepte ou refuse.
+
+| Risque | Protection |
+|---|---|
+| Découvrir qui utilise l'application | Réponse identique que l'adresse soit inscrite ou non |
+| Agir sur la demande d'une autre personne | Chaque requête filtre sur l'identité tirée de la session |
+| Partager le compte d'autrui | Envoi réservé au propriétaire ; même message si le compte n'existe pas |
+| Accepter une vieille demande | Expiration après 7 jours ; annulation par son auteur |
+| Valider deux fois, ou à plusieurs | Demande consommée dans une transaction ; deux membres au maximum |
+| Situation modifiée entre l'envoi et la validation | Liste blanche et propriété revérifiées à la validation |
+
+Un compte joint utilise les tags d'une seule personne, le **référent** (`Account.tagOwnerId`), choisi dans la demande. Les droits de chacun sur les tags seront appliqués avec le lot « Règles & Tags ».
 
 ### Chiffrement
 
@@ -182,20 +248,50 @@ docs/                 documentation de mise en production
 
 > **Sauvegardez `ENCRYPTION_KEY`.** Si elle est perdue ou changée, les données chiffrées sont définitivement illisibles. La rotation de clé n'est pas prévue.
 
-### Limites de l'accès à l'aveugle
+### Risques connus, à traiter
 
-La liaison d'un compte joint ne lit que des identifiants et ne renvoie qu'une confirmation. Cette protection est **applicative** :
-
-- l'administrateur peut aussi se lier lui-même à un compte **s'il en connaît l'identifiant**, et il en devient alors membre ;
-- la personne qui détient `ENCRYPTION_KEY` et l'accès à la base peut techniquement tout déchiffrer.
-
-### Compte joint et tags
-
-Un compte partagé utilise les tags d'une seule personne, le **référent** (`Account.tagOwnerId`). Il est choisi lors de la première liaison d'un membre. Le modifier n'est pas encore prévu, et les droits de chacun sur les tags seront appliqués avec le lot « Règles & Tags ».
+| Risque | Ce qu'il faudrait faire |
+|---|---|
+| **Un compte joint ne peut pas encore être dissous** : l'accord ne peut pas être retiré | Permettre à la personne invitée de quitter le compte, et au propriétaire de retirer le partage, chacun sans l'accord de l'autre ; à faire avant d'enregistrer de vraies opérations |
+| **Tags privés exposés** si le référent choisi est la personne invitée alors que l'historique porte déjà les tags du propriétaire | Dans le lot des tags : détacher ces tags avant d'activer le partage, après avoir prévenu les deux personnes |
+| La personne invitée n'est pas notifiée par email | L'alerte du Dashboard suffit tant que les personnes sont prévenues de vive voix ; sinon ajouter une notification sans détail financier |
+| Aucune politique de sécurité du contenu (CSP) | Ajouter une CSP avec nonce avant la mise en production avec de vraies données |
+| La limite de débit de Better-Auth est en mémoire, non partagée entre les instances Vercel | Utiliser un stockage partagé, ou une règle du pare-feu Vercel sur `/api/auth/*` |
+| La personne qui détient `ENCRYPTION_KEY` et l'accès à la base peut tout déchiffrer | Limiter qui détient ces secrets ; un chiffrement par utilisateur demanderait une autre conception |
 
 ### Dépôt public
 
 Ne versionnez jamais de secret, de base de données ni de relevé bancaire. `.gitignore` exclut `.env*` (sauf `.env.example`), les bases locales, `data/` et les fichiers `*.csv`, `*.ofx`, `*.qfx`, `*.qif`, `*.xls`, `*.xlsx`.
+
+## Conventions de développement
+
+- **Commentaires en français.** Chaque fonction nommée a une description (`/** … */`), vérifiée par ESLint.
+- **Découpage atomique** de l'interface, vérifié par ESLint.
+- **Couverture de test complète :** tout changement vient avec ses tests ; `npm test` échoue sous 100 %.
+- **Sécurité :** pour chaque évolution, identifier les risques et noter comment les limiter.
+- **Documentation :** garder ce README et la documentation de mise en production à jour.
+- **Commits** au format [Conventional Commits](https://www.conventionalcommits.org/fr/) (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`…) : un titre court, puis une description qui liste chaque point réalisé.
+
+```text
+feat(comptes): titre court
+
+- Premier point réalisé
+- Deuxième point réalisé
+```
+
+Avant de pousser :
+
+```powershell
+npm run typecheck
+```
+
+```powershell
+npm run lint
+```
+
+```powershell
+npm test
+```
 
 ## Dépannage
 
@@ -204,8 +300,9 @@ Ne versionnez jamais de secret, de base de données ni de relevé bancaire. `.gi
 | `Variables d'environnement invalides` | `.env` incomplet : le message nomme chaque variable en cause |
 | GitHub signale une erreur de `redirect_uri` | L'URL de callback ne correspond pas à `BETTER_AUTH_URL` |
 | L'administrateur est refusé | `ADMIN_EMAIL` diffère de l'adresse transmise par GitHub (voir l'étape 4) |
-| Erreur `429` à la connexion | Limite de débit : attendez quelques secondes |
+| Erreur `429` à la connexion | Limite de débit en production : attendez quelques secondes |
 | Impossible d'ajouter une passkey | La session est trop ancienne : reconnectez-vous |
+| Erreur `no such table` après une mise à jour | Lancez `npm run db:setup` |
 
 ## Dépendances à surveiller
 
@@ -213,3 +310,4 @@ Ne versionnez jamais de secret, de base de données ni de relevé bancaire. `.gi
 - **TypeScript 6** : `typescript-eslint` n'accepte pas encore TypeScript 7.
 - **`effect`** est forcé en 3.22.5 (`overrides` dans `package.json`) : la version imposée par le CLI Prisma 7.10.1 est signalée comme vulnérable par `npm audit`. Retirez ce forçage quand Prisma aura mis à jour sa dépendance.
 - **`@libsql/client`** reste en 0.17, version exigée par `@prisma/adapter-libsql` 7.10.1.
+- **`jsdom` 29** et **`eslint-plugin-jsdoc` 62** : les versions plus récentes exigent Node.js 24.15 au minimum.

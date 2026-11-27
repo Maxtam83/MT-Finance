@@ -4,10 +4,12 @@ import { getEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/validations/email";
 
+/** Indique si l'adresse est celle de l'administrateur. */
 export function isAdminEmail(email: string): boolean {
   return normalizeEmail(email) === getEnv().ADMIN_EMAIL;
 }
 
+/** Rôle attribué à une adresse. */
 export function roleForEmail(email: string): Role {
   return isAdminEmail(email) ? "ADMIN" : "USER";
 }

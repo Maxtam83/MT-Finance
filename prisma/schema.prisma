@@ -24,6 +24,8 @@ model User {
 
   accountsAsTagOwner Account[] @relation("AccountTagOwner")
 
+  jointAccountRequests JointAccountRequest[] @relation("JointAccountRequester")
+
   sessions     Session[]
   authAccounts AuthAccount[]
   passkeys     Passkey[]
@@ -63,6 +65,7 @@ model Account {
   rules              Rule[]
   holdings           Holding[]
   valuations         ValuationSnapshot[]
+  jointRequests      JointAccountRequest[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -82,6 +85,27 @@ model AccountMember {
 
   @@unique([accountId, userId])
   @@index([userId])
+}
+
+// Demande de compte joint. Elle ne produit un effet qu'après la validation des
+// deux personnes : l'envoi par le propriétaire, puis l'acceptation par l'invité.
+model JointAccountRequest {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  requesterId  String
+  requester    User      @relation("JointAccountRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  inviteeEmail String    // Normalisé ; l'adresse peut ne pas encore avoir de compte
+  tagOwner     String    // "REQUESTER" | "INVITEE"
+  status       String    @default("PENDING") // "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED"
+  expiresAt    DateTime
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([accountId, status])
+  @@index([inviteeEmail, status])
+  @@index([requesterId])
 }
 
 // ==========================================
