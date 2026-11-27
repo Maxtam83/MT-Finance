@@ -6,6 +6,7 @@ import { Button } from "@/components/atoms/button";
 import { ErrorAlert } from "@/components/molecules/error-alert";
 import { authClient } from "@/lib/auth/client";
 import { getAuthErrorMessage } from "@/lib/auth/errors";
+import { reloadTo } from "@/lib/browser";
 
 export type OAuthProvider = "github" | "google";
 
@@ -51,9 +52,7 @@ export function SignInPanel({ providers, initialError }: SignInPanelProps) {
       setIsPending(false);
       return;
     }
-    // Rechargement complet voulu : la page repart avec la nouvelle session.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign("/");
+    reloadTo("/");
   }
 
   return (

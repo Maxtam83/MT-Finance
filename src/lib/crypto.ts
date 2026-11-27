@@ -1,7 +1,6 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from "node:crypto";
-// Extension `.ts` explicite : ce module est aussi exécuté par `node --test`.
-import { getEnv } from "./env.ts";
+import { getEnv } from "@/lib/env";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
