@@ -259,6 +259,15 @@ model Verification {
   @@index([identifier])
 }
 
+// Compteurs de la limite de débit, communs à toutes les instances du serveur.
+// La clé associe l'adresse IP et la route appelée.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt // Horodatage en millisecondes
+}
+
 model Passkey {
   id           String    @id
   userId       String
