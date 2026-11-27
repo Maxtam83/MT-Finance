@@ -1,8 +1,8 @@
 # MT Finance
 
-Application web de gestion de finances personnelles et de patrimoine : interface complète sur ordinateur, PWA synthétique sur mobile. Cible de production : `finance.maxime-tamarin.fr`.
+Application web de gestion de finances personnelles et de patrimoine : interface complète sur ordinateur, PWA synthétique sur mobile.
 
-**Lot 1 (socle) :** base de données, chiffrement AES-256-GCM, authentification sur liste blanche, administration des accès, compte joint à double validation et manifeste PWA. La création de comptes n'existe pas encore ; les sections Règles & Tags, Import et Investissements sont des pages d'attente.
+**Lot 1 (socle) :** base de données, chiffrement AES-256-GCM, authentification sur liste blanche, administration des accès, compte joint à double validation et dissoluble par chacun, protections de sécurité et manifeste PWA. La création de comptes n'existe pas encore ; les sections Règles & Tags, Import et Investissements sont des pages d'attente.
 
 - Mise en production : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
 - Sécurité et risques connus : [Sécurité](#sécurité)
@@ -181,7 +181,8 @@ src/
   components/           atoms/, molecules/, organisms/, templates/
   hooks/                hooks React
   providers/            fournisseurs de contexte (thème)
-  lib/                  env, crypto, prisma, auth/, joint-accounts/, validations/
+  lib/                  env, crypto, prisma, auth/, joint-accounts/, security/, validations/
+  proxy.ts              politique de sécurité du contenu des pages
   instrumentation.ts    validation de l'environnement au démarrage
 tests/                  unit/, integration/, ui/, helpers/
 docs/                   documentation de mise en production
@@ -222,7 +223,7 @@ Le thème **sombre** est celui du site et s'affiche par défaut. Le thème **cla
 - Chaque page et Server Action protégée appelle `requireAuth()` ou `requireAdmin()` (`src/lib/auth/guards.ts`). Un layout ou le masquage d'un lien ne suffisent pas.
 - L'administrateur gère uniquement la liste blanche : il n'a aucun pouvoir sur les comptes ni sur leur partage.
 - Les jetons OAuth sont chiffrés en base avec une clé liée à `BETTER_AUTH_SECRET`.
-- En-têtes HTTP : `X-Frame-Options`, `X-Content-Type-Options` et `Referrer-Policy` (`next.config.ts`).
+- En-têtes HTTP : `X-Frame-Options`, `X-Content-Type-Options` et `Referrer-Policy` (`next.config.ts`), complétés par une [politique de sécurité du contenu](#politique-de-sécurité-du-contenu).
 
 ### Compte joint
 
@@ -230,6 +231,8 @@ Un compte ne devient joint qu'avec **la validation des deux personnes**, chacune
 
 1. le propriétaire envoie une demande depuis **Comptes** : adresse de l'autre personne, référent des tags et accord explicite ;
 2. la personne invitée voit le nom et le type du compte, l'auteur et le référent, puis accepte ou refuse.
+
+Ensuite, **chacun peut mettre fin au partage seul** : la personne invitée quitte le compte, ou le propriétaire arrête le partage. Une pastille sur **Comptes** signale les demandes reçues.
 
 | Risque | Protection |
 |---|---|
@@ -239,8 +242,29 @@ Un compte ne devient joint qu'avec **la validation des deux personnes**, chacune
 | Accepter une vieille demande | Expiration après 7 jours ; annulation par son auteur |
 | Valider deux fois, ou à plusieurs | Demande consommée dans une transaction ; deux membres au maximum |
 | Situation modifiée entre l'envoi et la validation | Liste blanche et propriété revérifiées à la validation |
+| Voir les tags privés de l'autre personne | À la validation, les tags de la personne non référente sont détachés des opérations, après avertissement des deux personnes |
+| Ne plus pouvoir retirer son accord | Départ ou arrêt du partage à tout moment, avec effet immédiat |
 
 Un compte joint utilise les tags d'une seule personne, le **référent** (`Account.tagOwnerId`), choisi dans la demande. Les droits de chacun sur les tags seront appliqués avec le lot « Règles & Tags ».
+
+**À la fin du partage,** la personne invitée perd l'accès et le compte redevient personnel. Ses tags sont détachés des opérations du compte et ses règles limitées à ce compte sont supprimées. Les tags eux-mêmes, les opérations et les autres règles sont conservés. Les tags détachés, à l'activation comme à la fin du partage, ne sont pas rétablis.
+
+### Limite de débit
+
+En production, Better-Auth limite les appels à `/api/auth/*` (par exemple 3 demandes de connexion par 10 secondes et par adresse IP). Les compteurs sont enregistrés en base (table `RateLimit`) : ils sont **communs à toutes les instances** du serveur.
+
+- L'adresse IP vient de l'en-tête `x-forwarded-for` transmis par l'hébergeur. Si vous ajoutez un proxy devant Vercel (un CDN par exemple), configurez `advanced.ipAddress.trustedProxies`. Sinon, tous les visiteurs risquent de partager le même compteur.
+- La table contient des adresses IP. Les lignes périmées sont purgées quand une période de comptage se renouvelle.
+- Cette limite ne concerne pas les Server Actions de l'application, réservées aux personnes connectées.
+
+### Politique de sécurité du contenu
+
+`src/proxy.ts` pose sur chaque page une CSP avec un jeton différent à chaque requête (`src/lib/security/csp.ts`). En production, seuls les scripts porteurs de ce jeton, et ceux qu'ils chargent, s'exécutent. Les ressources d'autres origines, les objets intégrés et l'affichage dans un cadre sont refusés. L'API a une politique entièrement fermée.
+
+- Toutes les pages sont rendues à chaque requête, car le jeton change à chaque fois.
+- En production, la seule insertion en ligne autorisée concerne les attributs `style`, nécessaires à des composants d'interface.
+- En développement, la politique est assouplie pour le rechargement à chaud.
+- Pour ajouter un script externe, transmettez-lui le jeton (en-tête `x-nonce`) ; pour un autre service, ajoutez son origine à la directive concernée. N'autorisez pas `unsafe-inline` pour les scripts.
 
 ### Chiffrement
 
@@ -250,14 +274,12 @@ Un compte joint utilise les tags d'une seule personne, le **référent** (`Accou
 
 ### Risques connus, à traiter
 
-| Risque | Ce qu'il faudrait faire |
-|---|---|
-| **Un compte joint ne peut pas encore être dissous** : l'accord ne peut pas être retiré | Permettre à la personne invitée de quitter le compte, et au propriétaire de retirer le partage, chacun sans l'accord de l'autre ; à faire avant d'enregistrer de vraies opérations |
-| **Tags privés exposés** si le référent choisi est la personne invitée alors que l'historique porte déjà les tags du propriétaire | Dans le lot des tags : détacher ces tags avant d'activer le partage, après avoir prévenu les deux personnes |
-| La personne invitée n'est pas notifiée par email | L'alerte du Dashboard suffit tant que les personnes sont prévenues de vive voix ; sinon ajouter une notification sans détail financier |
-| Aucune politique de sécurité du contenu (CSP) | Ajouter une CSP avec nonce avant la mise en production avec de vraies données |
-| La limite de débit de Better-Auth est en mémoire, non partagée entre les instances Vercel | Utiliser un stockage partagé, ou une règle du pare-feu Vercel sur `/api/auth/*` |
-| La personne qui détient `ENCRYPTION_KEY` et l'accès à la base peut tout déchiffrer | Limiter qui détient ces secrets ; un chiffrement par utilisateur demanderait une autre conception |
+| Risque | Pourquoi il reste | Ce qui le limite ou le traiterait |
+|---|---|---|
+| La personne qui détient `ENCRYPTION_KEY` et l'accès à la base peut tout déchiffrer | Le serveur chiffre avec une clé unique ; y remédier demanderait de refondre le chiffrement | Limiter qui détient ces secrets ; des clés par utilisateur demanderaient une autre conception |
+| La personne invitée à un compte joint n'est pas notifiée par email | Choix actuel : aucun service d'envoi d'email | Pastille sur « Comptes » et alerte sur l'accueil ; prévenir la personne directement |
+| Sur un compte joint, une règle ou une saisie pourrait poser un tag privé de la personne non référente | Les règles et la saisie des tags n'existent pas encore | **Au lot « Règles & Tags » :** n'appliquer que les règles du référent et refuser tout tag qui ne lui appartient pas |
+| La limite de débit n'arrête pas un afflux massif de requêtes, qui consomme aussi le quota de la base | L'application ne peut agir qu'après avoir reçu la requête | En complément, au déploiement, une règle du pare-feu Vercel sur `/api/auth/*` |
 
 ### Dépôt public
 
@@ -303,6 +325,7 @@ npm test
 | Erreur `429` à la connexion | Limite de débit en production : attendez quelques secondes |
 | Impossible d'ajouter une passkey | La session est trop ancienne : reconnectez-vous |
 | Erreur `no such table` après une mise à jour | Lancez `npm run db:setup` |
+| Un script ou un style ajouté reste sans effet et la console cite `Content Security Policy` | La ressource ne respecte pas la [politique de sécurité du contenu](#politique-de-sécurité-du-contenu) |
 
 ## Dépendances à surveiller
 
