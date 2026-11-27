@@ -19,6 +19,7 @@ export function useActionForm(action: FormAction) {
     if (state.status === "success") formRef.current?.reset();
   }, [state]);
 
+  /** Envoie le formulaire sans la remise à zéro automatique de React. */
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);

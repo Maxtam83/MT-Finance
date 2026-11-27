@@ -2,12 +2,14 @@
 
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
 import { authClient } from "@/lib/auth/client";
 
+/** Ferme la session puis revient à la page de connexion. */
 export function SignOutButton({ showLabel = false }: { showLabel?: boolean }) {
   const [isPending, setIsPending] = useState(false);
 
+  /** Demande la déconnexion au serveur avant de quitter la page. */
   async function signOut() {
     setIsPending(true);
     const { error } = await authClient.signOut();

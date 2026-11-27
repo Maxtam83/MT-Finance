@@ -1,8 +1,9 @@
-interface PageHeaderProps {
+export interface PageHeaderProps {
   title: string;
   description: string;
 }
 
+/** Titre principal d'une page et sa phrase d'introduction. */
 export function PageHeader({ title, description }: PageHeaderProps) {
   return (
     <header className="mb-6 md:mb-8">

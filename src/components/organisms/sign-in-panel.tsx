@@ -1,9 +1,9 @@
 "use client";
 
-import { CircleAlert, KeyRound, LogIn } from "lucide-react";
+import { KeyRound, LogIn } from "lucide-react";
 import { useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
+import { ErrorAlert } from "@/components/molecules/error-alert";
 import { authClient } from "@/lib/auth/client";
 import { getAuthErrorMessage } from "@/lib/auth/errors";
 
@@ -14,15 +14,17 @@ const PROVIDER_LABELS: Record<OAuthProvider, string> = {
   google: "Continuer avec Google",
 };
 
-interface SignInPanelProps {
+export interface SignInPanelProps {
   providers: OAuthProvider[];
   initialError: string | null;
 }
 
+/** Boutons de connexion OAuth et passkey, avec le message d'erreur éventuel. */
 export function SignInPanel({ providers, initialError }: SignInPanelProps) {
   const [errorMessage, setErrorMessage] = useState(initialError);
   const [isPending, setIsPending] = useState(false);
 
+  /** Redirige vers le fournisseur OAuth choisi. */
   async function signInWithProvider(provider: OAuthProvider) {
     setIsPending(true);
     setErrorMessage(null);
@@ -38,6 +40,7 @@ export function SignInPanel({ providers, initialError }: SignInPanelProps) {
     }
   }
 
+  /** Connecte avec une passkey déjà enregistrée. */
   async function signInWithPasskey() {
     setIsPending(true);
     setErrorMessage(null);
@@ -55,12 +58,7 @@ export function SignInPanel({ providers, initialError }: SignInPanelProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {errorMessage ? (
-        <Alert variant="destructive">
-          <CircleAlert />
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
+      {errorMessage ? <ErrorAlert message={errorMessage} /> : null}
 
       {providers.map((provider) => (
         <Button

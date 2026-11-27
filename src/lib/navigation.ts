@@ -31,6 +31,7 @@ export function getNavItems(isAdmin: boolean): NavItem[] {
   return NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly);
 }
 
+/** Indique si un lien correspond à la page affichée. */
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);

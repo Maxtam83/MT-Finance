@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/layout/coming-soon";
-import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/molecules/empty-state";
+import { PageTemplate } from "@/components/templates/page-template";
 import { requireAuth } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Comptes" };
 
+/** Page des comptes. */
 export default async function AccountsPage() {
   await requireAuth();
 
   return (
-    <>
-      <PageHeader title="Comptes" description="Comptes bancaires et comptes joints." />
-      <ComingSoon />
-    </>
+    <PageTemplate title="Comptes" description="Comptes bancaires et comptes joints.">
+      <EmptyState message="Cette section arrivera dans un prochain lot." />
+    </PageTemplate>
   );
 }

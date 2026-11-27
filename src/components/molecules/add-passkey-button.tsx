@@ -5,16 +5,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ActionState } from "@/actions/action-state";
 import { initialActionState } from "@/actions/action-state";
-import { FormFeedback } from "@/components/form-feedback";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
+import { FormMessage } from "@/components/atoms/form-message";
 import { authClient } from "@/lib/auth/client";
 import { getAuthErrorMessage } from "@/lib/auth/errors";
 
+/** Enregistre une passkey pour la personne connectée. */
 export function AddPasskeyButton() {
   const router = useRouter();
   const [feedback, setFeedback] = useState<ActionState>(initialActionState);
   const [isPending, setIsPending] = useState(false);
 
+  /** Lance l'enregistrement auprès du navigateur et affiche le résultat. */
   async function addPasskey() {
     setIsPending(true);
     setFeedback(initialActionState);
@@ -36,7 +38,7 @@ export function AddPasskeyButton() {
         <KeyRound />
         Ajouter une passkey
       </Button>
-      <FormFeedback state={feedback} />
+      <FormMessage state={feedback} />
     </div>
   );
 }

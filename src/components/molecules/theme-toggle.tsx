@@ -2,8 +2,9 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/atoms/button";
 
+/** Bascule entre le thème clair et le thème sombre. */
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
 
