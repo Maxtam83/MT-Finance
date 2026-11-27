@@ -13,6 +13,7 @@ import { CardHeading } from "@/components/molecules/card-heading";
 import { ConfirmAction } from "@/components/molecules/confirm-action";
 import { ConsentCheckbox } from "@/components/molecules/consent-checkbox";
 import { EmptyState } from "@/components/molecules/empty-state";
+import { EndSharingButton } from "@/components/molecules/end-sharing-button";
 import { ErrorAlert } from "@/components/molecules/error-alert";
 import { FormField } from "@/components/molecules/form-field";
 import { InfoList } from "@/components/molecules/info-list";
@@ -37,6 +38,8 @@ const mocks = vi.hoisted(() => ({
   accept: vi.fn(),
   decline: vi.fn(),
   cancel: vi.fn(),
+  leave: vi.fn(),
+  stop: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
@@ -52,6 +55,8 @@ vi.mock("@/actions/joint-accounts", () => ({
   acceptJointAccountRequest: mocks.accept,
   declineJointAccountRequest: mocks.decline,
   cancelJointAccountRequest: mocks.cancel,
+  leaveSharedAccount: mocks.leave,
+  stopAccountSharing: mocks.stop,
 }));
 
 const done: ActionState = { status: "success", message: "Fait." };
@@ -66,7 +71,8 @@ beforeEach(() => {
     if (typeof mock === "function") mock.mockReset();
   }
   mocks.theme.current = "dark";
-  for (const action of [mocks.removeAllowedEmail, mocks.accept, mocks.decline, mocks.cancel]) {
+  const { removeAllowedEmail, accept, decline, cancel, leave, stop } = mocks;
+  for (const action of [removeAllowedEmail, accept, decline, cancel, leave, stop]) {
     action.mockResolvedValue(done);
   }
 });
@@ -210,6 +216,26 @@ describe("actions confirmées", () => {
 
     expect(sentFields(mocks[action])).toEqual({ requestId: "r1" });
   });
+});
+
+describe("fin du partage", () => {
+  test.each([
+    [true, "Arrêter le partage", "Confirmer l'arrêt du partage", /b@x.fr perdra l'accès/, "stop" as const],
+    [false, "Quitter le compte joint", "Confirmer mon départ", /Vous perdrez l'accès/, "leave" as const],
+  ])(
+    "propriétaire : %s — annonce les conséquences avant d'agir",
+    async (isOwner, trigger, confirm, warning, action) => {
+      const user = userEvent.setup();
+      render(<EndSharingButton accountId="c1" isOwner={isOwner} sharedWith="b@x.fr" />);
+
+      await user.click(screen.getByRole("button", { name: trigger }));
+      expect(screen.getByText(warning)).toBeInTheDocument();
+      expect(mocks[action]).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: confirm }));
+
+      expect(sentFields(mocks[action])).toEqual({ accountId: "c1" });
+    },
+  );
 });
 
 describe("thème", () => {

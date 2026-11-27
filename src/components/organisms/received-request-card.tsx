@@ -32,7 +32,8 @@ export function ReceivedRequestCard({ request }: { request: ReceivedRequest }) {
         />
         <p className="text-muted-foreground">
           En acceptant, vous accéderez à tout l&apos;historique de ce compte et à ses futures
-          opérations. N&apos;acceptez que si vous connaissez cette personne.
+          opérations. N&apos;acceptez que si vous connaissez cette personne. Chacun de vous pourra
+          ensuite mettre fin au partage à tout moment.
         </p>
         <p className="text-muted-foreground">
           {tagOwner === "INVITEE"

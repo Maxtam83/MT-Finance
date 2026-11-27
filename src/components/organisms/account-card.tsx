@@ -3,6 +3,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Card, CardContent } from "@/components/atoms/card";
 import { CancelRequestButton } from "@/components/molecules/cancel-request-button";
 import { CardHeading } from "@/components/molecules/card-heading";
+import { EndSharingButton } from "@/components/molecules/end-sharing-button";
 import { InfoList } from "@/components/molecules/info-list";
 import { ShareAccountForm } from "@/components/organisms/share-account-form";
 import { getAccountTypeLabel } from "@/lib/accounts/labels";
@@ -30,6 +31,7 @@ export function AccountCard({ account }: { account: AccountSummary }) {
                 { term: "Référent des tags", value: joint.tagOwner },
               ]}
             />
+            <EndSharingButton accountId={id} isOwner={isOwner} sharedWith={joint.sharedWith} />
           </>
         ) : pendingRequest ? (
           <>

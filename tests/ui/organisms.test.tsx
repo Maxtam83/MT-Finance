@@ -42,6 +42,8 @@ vi.mock("@/actions/joint-accounts", () => ({
   acceptJointAccountRequest: vi.fn(),
   declineJointAccountRequest: vi.fn(),
   cancelJointAccountRequest: vi.fn(),
+  leaveSharedAccount: vi.fn(),
+  stopAccountSharing: vi.fn(),
 }));
 // La lecture en base n'est pas nécessaire : seuls les types sont utilisés ici.
 vi.mock("@/lib/joint-accounts/queries", () => ({}));
@@ -163,6 +165,19 @@ describe("cartes de compte", () => {
     expect(screen.getByText(/Demande envoyée à b@x.fr/)).toHaveTextContent("4 décembre 2026");
     expect(screen.getByRole("button", { name: "Annuler la demande" })).toBeInTheDocument();
     expect(screen.queryByText("Transformer en compte joint")).not.toBeInTheDocument();
+  });
+
+  test.each([
+    [true, "Arrêter le partage"],
+    [false, "Quitter le compte joint"],
+  ])("permet à chacun de mettre fin au partage (propriétaire : %s)", (isOwner, label) => {
+    render(
+      <AccountCard
+        account={{ ...account, isOwner, joint: { sharedWith: "b@x.fr", tagOwner: "Vous" } }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
   });
 
   test("décrit un compte joint", () => {

@@ -12,7 +12,8 @@ import { prisma } from "@/lib/prisma";
 
 /*
  * Un compte ne devient joint qu'avec l'accord des deux personnes, chacune depuis
- * sa propre session. Aucune de ces fonctions ne lit de montant ni d'opération.
+ * sa propre session. Chacune peut ensuite y mettre fin seule. Aucune de ces
+ * fonctions ne lit de montant ni d'opération.
  */
 
 /** Personne connectée qui agit. Son identité vient toujours de la session. */
@@ -28,6 +29,8 @@ export interface JointRequestInput {
 }
 
 const REQUEST_UNAVAILABLE = "Demande introuvable, expirée ou déjà traitée.";
+// Même message pour un compte inexistant, personnel ou appartenant à d'autres.
+const JOINT_ACCOUNT_UNAVAILABLE = "Compte joint introuvable.";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 /** Refus métier levé dans une transaction pour l'annuler entièrement. */
@@ -189,6 +192,62 @@ export async function cancelJointRequest(
     data: { status: JOINT_REQUEST_STATUS.cancelled, resolvedAt: now },
   });
   return count === 1 ? { status: "success", message: "Demande annulée." } : failure(REQUEST_UNAVAILABLE);
+}
+
+/**
+ * Retire un membre invité. Le compte redevient personnel et tout ce qui
+ * appartenait à cette personne en est détaché.
+ */
+async function removeGuest(
+  tx: Prisma.TransactionClient,
+  accountId: string,
+  guestId: string,
+): Promise<boolean> {
+  // L'écriture vient en premier : deux ruptures simultanées ne réussissent pas toutes les deux.
+  const { count } = await tx.accountMember.deleteMany({
+    where: { accountId, userId: guestId, role: "MEMBER" },
+  });
+  if (count !== 1) return false;
+
+  // Ses tags sont retirés des opérations (les tags eux-mêmes sont conservés).
+  await tx.transaction.updateMany({
+    where: { accountId, tag: { userId: guestId } },
+    data: { tagId: null },
+  });
+  // Ses règles limitées à ce compte n'ont plus d'objet.
+  await tx.rule.deleteMany({ where: { accountId, userId: guestId } });
+  // Sans référent, les tags du propriétaire s'appliquent de nouveau.
+  await tx.account.updateMany({ where: { id: accountId }, data: { tagOwnerId: null } });
+  return true;
+}
+
+/** La personne invitée quitte le compte joint, sans l'accord du propriétaire. */
+export async function leaveJointAccount(member: Actor, accountId: string): Promise<ActionState> {
+  return runGuarded(async (tx) => {
+    if (!(await removeGuest(tx, accountId, member.id))) {
+      throw new Refusal(JOINT_ACCOUNT_UNAVAILABLE);
+    }
+    return "Vous avez quitté le compte joint.";
+  });
+}
+
+/** Le propriétaire arrête le partage, sans l'accord de la personne invitée. */
+export async function stopSharingAccount(owner: Actor, accountId: string): Promise<ActionState> {
+  return runGuarded(async (tx) => {
+    const guest = await tx.accountMember.findFirst({
+      where: {
+        accountId,
+        role: "MEMBER",
+        // Réservé au propriétaire de ce compte.
+        account: { members: { some: { userId: owner.id, role: "OWNER" } } },
+      },
+      select: { userId: true },
+    });
+    if (!guest || !(await removeGuest(tx, accountId, guest.userId))) {
+      throw new Refusal(JOINT_ACCOUNT_UNAVAILABLE);
+    }
+    return "Le partage est arrêté : le compte est redevenu personnel.";
+  });
 }
 
 /**

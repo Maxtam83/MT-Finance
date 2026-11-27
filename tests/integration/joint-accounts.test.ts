@@ -359,6 +359,130 @@ describe("refus et annulation", () => {
   });
 });
 
+describe("fin du partage", () => {
+  /** Rend le compte de test joint, avec le référent demandé. */
+  const share = async (tagOwner: "REQUESTER" | "INVITEE" = "INVITEE") => {
+    await invite(people.mallory.email, tagOwner);
+    await service.acceptJointRequest(people.mallory, await lastRequestId());
+  };
+
+  beforeEach(async () => {
+    await prisma.tag.deleteMany();
+    await prisma.rule.deleteMany();
+  });
+
+  test.each([
+    ["la personne invitée qui part", () => service.leaveJointAccount(people.mallory, ACCOUNT_ID)],
+    ["le propriétaire qui arrête", () => service.stopSharingAccount(people.alice, ACCOUNT_ID)],
+  ])("suffit avec %s : le compte redevient personnel", async (_label, end) => {
+    await share();
+
+    await expect(end()).resolves.toMatchObject({ status: "success" });
+
+    expect(await memberCount()).toBe(1);
+    expect(await queries.listAccountSummaries(people.mallory.id)).toEqual([]);
+    const account = await prisma.account.findUniqueOrThrow({ where: { id: ACCOUNT_ID } });
+    expect(account.tagOwnerId).toBeNull();
+  });
+
+  test("détache les tags et les règles de l'invité, et rien d'autre", async () => {
+    await share();
+    const guestOperation = await addTaggedOperation(people.mallory.id);
+    const ownerOperation = await addTaggedOperation(people.alice.id);
+    const otherAccount = await prisma.account.create({
+      data: { name: "x", type: "SAVINGS", scope: "PERSONAL" },
+    });
+    const elsewhere = await addTaggedOperation(people.mallory.id, otherAccount.id);
+    /** Crée une règle, limitée ou non à un compte. */
+    const addRule = (userId: string, accountId: string | null) =>
+      prisma.rule.create({ data: { userId, accountId, pattern: encrypt("motif") } });
+    const removed = await addRule(people.mallory.id, ACCOUNT_ID);
+    const kept = [
+      await addRule(people.mallory.id, null),
+      await addRule(people.mallory.id, otherAccount.id),
+      await addRule(people.alice.id, ACCOUNT_ID),
+    ];
+
+    await service.leaveJointAccount(people.mallory, ACCOUNT_ID);
+
+    expect(await tagOf(guestOperation)).toBeNull();
+    expect(await tagOf(ownerOperation)).not.toBeNull();
+    expect(await tagOf(elsewhere)).not.toBeNull();
+    const rules = (await prisma.rule.findMany({ select: { id: true } })).map((rule) => rule.id);
+    expect(rules.sort()).toEqual(kept.map((rule) => rule.id).sort());
+    expect(rules).not.toContain(removed.id);
+    expect(await prisma.tag.count()).toBe(3);
+  });
+
+  test.each([
+    ["le propriétaire ne peut pas « quitter »", "alice" as const, "leave" as const],
+    ["l'invité ne peut pas arrêter le partage", "mallory" as const, "stop" as const],
+    ["un tiers ne peut pas quitter", "admin" as const, "leave" as const],
+    ["un tiers ne peut pas arrêter", "admin" as const, "stop" as const],
+  ])("%s", async (_label, who, action) => {
+    await share();
+    const end = action === "leave" ? service.leaveJointAccount : service.stopSharingAccount;
+
+    await expect(end(people[who], ACCOUNT_ID)).resolves.toEqual({
+      status: "error",
+      message: "Compte joint introuvable.",
+    });
+    expect(await memberCount()).toBe(2);
+  });
+
+  test("est refusée sur un compte personnel", async () => {
+    await expect(service.stopSharingAccount(people.alice, ACCOUNT_ID)).resolves.toMatchObject({
+      message: "Compte joint introuvable.",
+    });
+  });
+
+  test("n'aboutit qu'une fois quand les deux personnes rompent en même temps", async () => {
+    await share();
+
+    const results = await Promise.all([
+      service.leaveJointAccount(people.mallory, ACCOUNT_ID),
+      service.stopSharingAccount(people.alice, ACCOUNT_ID),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual(["error", "success"]);
+    expect(await memberCount()).toBe(1);
+  });
+
+  test("permet de partager de nouveau, avec une nouvelle validation", async () => {
+    await share();
+    await service.leaveJointAccount(people.mallory, ACCOUNT_ID);
+
+    await expect(invite()).resolves.toMatchObject({ status: "success" });
+    expect(await memberCount()).toBe(1);
+  });
+
+  test("passe par des Server Actions liées à la session", async () => {
+    await share();
+    const form = formData({ accountId: ACCOUNT_ID });
+    const redirect = new RedirectSignal("/login");
+    await expect(actions.leaveSharedAccount(initialActionState, form)).rejects.toEqual(redirect);
+    await expect(actions.stopAccountSharing(initialActionState, form)).rejects.toEqual(redirect);
+
+    requestState.cookie = people.mallory.cookie;
+    await expect(actions.stopAccountSharing(initialActionState, form)).resolves.toMatchObject({
+      status: "error",
+    });
+    await expect(actions.leaveSharedAccount(initialActionState, form)).resolves.toMatchObject({
+      status: "success",
+    });
+    await expect(
+      actions.leaveSharedAccount(initialActionState, formData({ accountId: "a b" })),
+    ).resolves.toEqual({ status: "error", message: "Identifiant invalide." });
+
+    await share();
+    requestState.cookie = people.alice.cookie;
+    await expect(actions.stopAccountSharing(initialActionState, form)).resolves.toMatchObject({
+      status: "success",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/comptes");
+  });
+});
+
 describe("lectures", () => {
   test("montre à la personne invitée de quoi décider, sans aucun montant", async () => {
     await invite(people.mallory.email, "INVITEE");

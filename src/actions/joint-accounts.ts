@@ -9,9 +9,15 @@ import {
   cancelJointRequest,
   createJointRequest,
   declineJointRequest,
+  leaveJointAccount,
+  stopSharingAccount,
 } from "@/lib/joint-accounts/service";
 import type { Actor } from "@/lib/joint-accounts/service";
-import { jointRequestIdSchema, requestJointAccountSchema } from "@/lib/validations/joint-account";
+import {
+  jointAccountIdSchema,
+  jointRequestIdSchema,
+  requestJointAccountSchema,
+} from "@/lib/validations/joint-account";
 
 // Chaque action est une route publique : `requireAuth` y est toujours appelé en
 // premier, et l'identité de la personne vient uniquement de sa session.
@@ -56,6 +62,37 @@ async function resolveRequest(
   const result = await resolve(user, parsed.data.requestId);
   refreshAccountPages();
   return result;
+}
+
+/** Applique au compte désigné par le formulaire la rupture demandée par la personne connectée. */
+async function endSharing(
+  formData: FormData,
+  end: (actor: Actor, accountId: string) => Promise<ActionState>,
+): Promise<ActionState> {
+  const { user } = await requireAuth();
+
+  const parsed = jointAccountIdSchema.safeParse({ accountId: formData.get("accountId") });
+  if (!parsed.success) return validationFailure(parsed.error);
+
+  const result = await end(user, parsed.data.accountId);
+  refreshAccountPages();
+  return result;
+}
+
+/** La personne invitée quitte le compte joint. */
+export async function leaveSharedAccount(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return endSharing(formData, leaveJointAccount);
+}
+
+/** Le propriétaire arrête de partager son compte. */
+export async function stopAccountSharing(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return endSharing(formData, stopSharingAccount);
 }
 
 /** La personne invitée valide : le compte devient joint. */
