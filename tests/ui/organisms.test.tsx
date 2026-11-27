@@ -225,8 +225,8 @@ describe("navigation", () => {
   test.each([true, false])("affiche l'administration selon le rôle (%s)", (isAdmin) => {
     render(
       <>
-        <AppSidebar isAdmin={isAdmin} email="a@x.fr" />
-        <BottomNav isAdmin={isAdmin} />
+        <AppSidebar isAdmin={isAdmin} email="a@x.fr" pendingRequestCount={0} />
+        <BottomNav isAdmin={isAdmin} pendingRequestCount={0} />
         <MobileHeader />
       </>,
     );
@@ -235,6 +235,23 @@ describe("navigation", () => {
     for (const link of screen.getAllByRole("link", { name: "Comptes" })) {
       expect(link).toHaveAttribute("aria-current", "page");
     }
+  });
+});
+
+describe("demandes en attente dans la navigation", () => {
+  test("sont signalées sur « Comptes » seulement, sur ordinateur et sur mobile", () => {
+    render(
+      <>
+        <AppSidebar isAdmin={false} email="a@x.fr" pendingRequestCount={2} />
+        <BottomNav isAdmin={false} pendingRequestCount={2} />
+      </>,
+    );
+
+    expect(
+      screen.getAllByRole("link", { name: "Comptes, 2 demandes en attente" }),
+    ).toHaveLength(2);
+    expect(screen.getAllByText("2")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Import" })).toHaveLength(2);
   });
 });
 

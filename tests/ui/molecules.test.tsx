@@ -142,6 +142,21 @@ describe("affichage", () => {
   });
 
   test.each([
+    [1, "1", "Dashboard, 1 demande en attente"],
+    [12, "9+", "Dashboard, 12 demandes en attente"],
+  ])("affiche la pastille « %i » sur un lien", (count, text, name) => {
+    render(
+      <>
+        <SidebarLink item={navItem} isActive={false} badgeCount={count} />
+        <BottomNavLink item={navItem} isActive={false} badgeCount={count} />
+      </>,
+    );
+
+    expect(screen.getAllByRole("link", { name })).toHaveLength(2);
+    expect(screen.getAllByText(text)).toHaveLength(2);
+  });
+
+  test.each([
     [0, null],
     [1, "Une demande de compte joint attend votre validation."],
     [3, "3 demandes de compte joint attendent votre validation."],

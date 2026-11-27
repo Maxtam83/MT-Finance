@@ -5,15 +5,16 @@ import { Brand } from "@/components/molecules/brand";
 import { SidebarLink } from "@/components/molecules/sidebar-link";
 import { SignOutButton } from "@/components/molecules/sign-out-button";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
-import { getNavItems, isActivePath } from "@/lib/navigation";
+import { getNavBadgeCount, getNavItems, isActivePath } from "@/lib/navigation";
 
 interface AppSidebarProps {
   isAdmin: boolean;
   email: string;
+  pendingRequestCount: number;
 }
 
 /** Navigation latérale en panneau flottant, à partir de 768 px. */
-export function AppSidebar({ isAdmin, email }: AppSidebarProps) {
+export function AppSidebar({ isAdmin, email, pendingRequestCount }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -25,7 +26,12 @@ export function AppSidebar({ isAdmin, email }: AppSidebarProps) {
 
         <nav aria-label="Navigation principale" className="mt-6 flex flex-1 flex-col gap-1">
           {getNavItems(isAdmin).map((item) => (
-            <SidebarLink key={item.href} item={item} isActive={isActivePath(pathname, item.href)} />
+            <SidebarLink
+              key={item.href}
+              item={item}
+              isActive={isActivePath(pathname, item.href)}
+              badgeCount={getNavBadgeCount(item.href, pendingRequestCount)}
+            />
           ))}
         </nav>
 

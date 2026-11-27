@@ -92,7 +92,7 @@ describe("gabarits", () => {
   test("structurent les pages protégées, publiques et leur en-tête", () => {
     render(
       <>
-        <AppShell isAdmin={false} email="a@x.fr">
+        <AppShell isAdmin={false} email="a@x.fr" pendingRequestCount={0}>
           <PageTemplate title="Titre" description="Intro">
             contenu
           </PageTemplate>
@@ -130,6 +130,17 @@ describe("pages protégées", () => {
       expect(mocks.listAccountSummaries).not.toHaveBeenCalled();
     },
   );
+
+  test("signale dans la navigation les demandes de la personne connectée", async () => {
+    mocks.countReceivedRequests.mockResolvedValue(3);
+
+    render(await AppLayout({ children: "contenu" }));
+
+    expect(mocks.countReceivedRequests).toHaveBeenCalledWith("a@x.fr");
+    expect(
+      screen.getAllByRole("link", { name: "Comptes, 3 demandes en attente" }),
+    ).toHaveLength(2);
+  });
 
   test("lit les comptes et demandes de la seule personne connectée", async () => {
     await AccountsPage();

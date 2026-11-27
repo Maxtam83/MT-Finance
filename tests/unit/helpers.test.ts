@@ -5,7 +5,7 @@ import { validationFailure } from "@/actions/validation-failure";
 import { getAccountTypeLabel } from "@/lib/accounts/labels";
 import { ACCESS_ERROR, getAuthErrorMessage } from "@/lib/auth/errors";
 import { formatDate } from "@/lib/format";
-import { getNavItems, isActivePath } from "@/lib/navigation";
+import { describeNavItem, getNavBadgeCount, getNavItems, isActivePath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { addAllowedEmailSchema, removeAllowedEmailSchema } from "@/lib/validations/admin";
 import { emailSchema, normalizeEmail } from "@/lib/validations/email";
@@ -28,6 +28,21 @@ describe("navigation", () => {
     ["/comptes-bis", "/comptes", false],
   ])("compare la page %s au lien %s", (pathname, href, expected) => {
     expect(isActivePath(pathname, href)).toBe(expected);
+  });
+});
+
+describe("pastille de navigation", () => {
+  test("ne concerne que l'entrée des comptes", () => {
+    expect(getNavBadgeCount("/comptes", 2)).toBe(2);
+    expect(getNavBadgeCount("/", 2)).toBe(0);
+  });
+
+  test.each([
+    [0, "Comptes"],
+    [1, "Comptes, 1 demande en attente"],
+    [4, "Comptes, 4 demandes en attente"],
+  ])("annonce %i demande(s)", (count, expected) => {
+    expect(describeNavItem("Comptes", count)).toBe(expected);
   });
 });
 
