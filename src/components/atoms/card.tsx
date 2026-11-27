@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cn } from "cn"
 
+/** Panneau translucide qui regroupe un contenu. */
 function Card({
   className,
   size = "default",
@@ -19,6 +20,7 @@ function Card({
   )
 }
 
+/** En-tête d'une carte. */
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -32,6 +34,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Titre d'une carte. */
 function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -45,6 +48,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Sous-titre d'une carte. */
 function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -55,6 +59,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Action placée dans l'en-tête d'une carte. */
 function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -68,6 +73,7 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Corps d'une carte. */
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -78,6 +84,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Pied d'une carte. */
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

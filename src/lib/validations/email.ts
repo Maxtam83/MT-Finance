@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+/** Forme canonique d'une adresse, utilisée pour toutes les comparaisons. */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }

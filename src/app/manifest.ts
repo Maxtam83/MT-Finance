@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+/** Manifeste de la PWA, servi sur `/manifest.webmanifest`. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "MT Finance",

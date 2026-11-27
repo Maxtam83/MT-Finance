@@ -3,6 +3,7 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@/generated/prisma/client";
 import { getEnv } from "@/lib/env";
 
+/** Crée le client Prisma branché sur libSQL. */
 function createPrismaClient(): PrismaClient {
   const { DATABASE_URL, DATABASE_AUTH_TOKEN } = getEnv();
   const adapter = new PrismaLibSql({ url: DATABASE_URL, authToken: DATABASE_AUTH_TOKEN });

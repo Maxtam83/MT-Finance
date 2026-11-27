@@ -4,6 +4,7 @@ import { Radio as RadioPrimitive } from "@base-ui/react/radio"
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 import { cn } from "cn"
 
+/** Groupe de choix exclusifs. */
 function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (
     <RadioGroupPrimitive
@@ -14,6 +15,7 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   )
 }
 
+/** Un choix d'un groupe de boutons radio. */
 function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
   return (
     <RadioPrimitive.Root

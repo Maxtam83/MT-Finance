@@ -26,6 +26,7 @@ const badgeVariants = cva(
   }
 )
 
+/** Étiquette en pilule. */
 function Badge({
   className,
   variant = "default",

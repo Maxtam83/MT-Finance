@@ -3,6 +3,7 @@
 import * as React from "react"
 import { cn } from "cn"
 
+/** Libellé d'un champ. */
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
     <label

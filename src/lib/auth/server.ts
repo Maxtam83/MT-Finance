@@ -17,11 +17,13 @@ const appUrl = new URL(env.BETTER_AUTH_URL);
 
 type AccessError = (typeof ACCESS_ERROR)[keyof typeof ACCESS_ERROR];
 
+/** Interrompt l'opération avec un code d'accès refusé. */
 function denyAccess(code: AccessError): never {
   // Le `code` est repris dans l'URL de retour OAuth : /login?error=<code>
   throw new APIError("FORBIDDEN", { code, message: ACCESS_ERROR_MESSAGES[code] });
 }
 
+/** Exige une adresse autorisée et vérifiée par le fournisseur. */
 async function assertAccessAllowed(user: { email: string; emailVerified: boolean }): Promise<void> {
   if (!(await isEmailAllowed(user.email))) denyAccess(ACCESS_ERROR.emailNotAllowed);
   // Le rôle ADMIN dépend de l'email : il doit être prouvé par le fournisseur.

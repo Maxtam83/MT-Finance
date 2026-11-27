@@ -18,6 +18,7 @@ const alertVariants = cva(
   }
 )
 
+/** Encadré qui signale une information ou une erreur. */
 function Alert({
   className,
   variant,
@@ -33,6 +34,7 @@ function Alert({
   )
 }
 
+/** Titre d'un encadré. */
 function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -46,6 +48,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Texte détaillé d'un encadré. */
 function AlertDescription({
   className,
   ...props
@@ -62,6 +65,7 @@ function AlertDescription({
   )
 }
 
+/** Action placée dans le coin d'un encadré. */
 function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

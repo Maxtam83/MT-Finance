@@ -26,6 +26,7 @@ export const viewport: Viewport = {
   ],
 };
 
+/** Mise en page racine : police, langue et thème. */
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="fr" className={inter.variable} suppressHydrationWarning>

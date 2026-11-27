@@ -24,6 +24,7 @@ const MESSAGES: Record<string, string> = {
     "Par sécurité, déconnectez-vous puis reconnectez-vous avant d'ajouter une passkey.",
 };
 
+/** Message français correspondant à un code d'erreur de connexion. */
 export function getAuthErrorMessage(code: string | undefined): string {
   // `hasOwn` : le code vient de l'URL et ne doit pas atteindre le prototype.
   if (code && Object.hasOwn(MESSAGES, code)) {

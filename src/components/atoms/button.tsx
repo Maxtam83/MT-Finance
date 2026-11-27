@@ -39,6 +39,7 @@ const buttonVariants = cva(
   }
 )
 
+/** Bouton en pilule, décliné par variante et par taille. */
 function Button({
   className,
   variant = "default",

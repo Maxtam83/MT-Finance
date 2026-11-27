@@ -51,6 +51,7 @@ export async function requireAuth(): Promise<AuthSession> {
   return session;
 }
 
+/** Comme `requireAuth`, mais réservé à l'administrateur ; les autres sont renvoyés à l'accueil. */
 export async function requireAdmin(): Promise<AuthSession> {
   const session = await requireAuth();
   if (session.user.role !== "ADMIN") redirect("/");

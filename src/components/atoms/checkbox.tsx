@@ -4,6 +4,7 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 import { cn } from "cn"
 import { CheckIcon } from "lucide-react"
 
+/** Case à cocher accessible. */
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root

@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
 
 /** Atomic Design : une couche n'importe jamais une couche située au-dessus d'elle. */
 const atomicLayers = [
@@ -39,6 +40,30 @@ export default defineConfig([
     },
   },
   ...atomicDesignRules,
+  {
+    // Toute fonction nommée du code applicatif doit être décrite (en français).
+    files: ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+    plugins: { jsdoc },
+    rules: {
+      "jsdoc/require-jsdoc": [
+        "error",
+        {
+          require: {
+            FunctionDeclaration: true,
+            MethodDefinition: true,
+            ClassDeclaration: true,
+          },
+          // Les fonctions fléchées nommées au premier niveau comptent aussi.
+          contexts: [
+            "Program > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+          ],
+          enableFixer: false,
+        },
+      ],
+      "jsdoc/require-description": "error",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",
