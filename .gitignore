@@ -1,0 +1,54 @@
+# Dépendances
+/node_modules/
+
+# Next.js et fichiers de build
+/.next/
+/out/
+/build/
+/dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# Client Prisma généré
+/src/generated/
+
+# Bases de données locales : ne jamais les versionner
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Secrets et variables d'environnement (seul le modèle est versionné)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Relevés bancaires et exports financiers
+/data/
+*.csv
+*.ofx
+*.qfx
+*.qif
+*.xls
+*.xlsx
+
+# Vercel
+.vercel/
+
+# Journaux et couverture de tests
+*.log
+/coverage/
+
+# Éditeurs et outils locaux
+.claude/
+.idea/
+.vscode/
+
+# Système
+.DS_Store
+Thumbs.db
+desktop.ini

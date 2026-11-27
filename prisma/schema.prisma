@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ==========================================
+// 1. UTILISATEURS & LISTE BLANCHE ADMIN
+// ==========================================
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          String    @default("USER") // "ADMIN" | "USER"
+  emailVerified Boolean   @default(false)
+  image         String?
+
+  memberships   AccountMember[]
+  tags          Tag[]
+  rules         Rule[]
+
+  accountsAsTagOwner Account[] @relation("AccountTagOwner")
+
+  sessions     Session[]
+  authAccounts AuthAccount[]
+  passkeys     Passkey[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AllowedEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  addedBy   String
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 2. COMPTES & PARTAGE (COMPTE JOINT)
+// ==========================================
+model Account {
+  id                 String   @id @default(cuid())
+  name               String   // [CHIFFRÉ AES-256] Nom du compte
+  type               String   // "CHECKING" | "PRO" | "SAVINGS" | "PEA" | "PEE" | "CRYPTO"
+  scope              String   // "PERSONAL" | "PRO"
+  currency           String   @default("EUR")
+
+  initialBalance     Int      @default(0) // En centimes
+  initialBalanceDate DateTime @default(now())
+  isActive           Boolean  @default(true)
+
+  // Compte joint : personne dont les tags (et les règles) s'appliquent au compte.
+  // Vide sur un compte personnel : ceux du propriétaire s'appliquent.
+  tagOwnerId         String?
+  tagOwner           User?    @relation("AccountTagOwner", fields: [tagOwnerId], references: [id], onDelete: SetNull)
+
+  members            AccountMember[]
+  transactions       Transaction[]
+  rules              Rule[]
+  holdings           Holding[]
+  valuations         ValuationSnapshot[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tagOwnerId])
+}
+
+model AccountMember {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("OWNER") // "OWNER" | "MEMBER"
+
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, userId])
+  @@index([userId])
+}
+
+// ==========================================
+// 3. TAGS & RÈGLES (PRIVÉS PAR UTILISATEUR)
+// ==========================================
+model Tag {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String   // ex: "Restaurant", "Appartement"
+  color        String   // Code Hex
+  nature       String   // "ESSENTIAL" | "PLEASURE" | "PRO" | "INCOME"
+
+  transactions Transaction[]
+  rules        Rule[]
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Rule {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pattern           String   // [CHIFFRÉ AES-256]
+  replacementLabel  String?  // [CHIFFRÉ AES-256]
+  priority          Int      @default(0)
+
+  accountId         String?
+  account           Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  tagId             String?
+  tag               Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ==========================================
+// 4. TRANSACTIONS (CASHFLOW)
+// ==========================================
+model Transaction {
+  id            String   @id @default(cuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  amount        Int      // En centimes
+  date          DateTime
+
+  type          String   // "EXPENSE" | "INCOME" | "INTERNAL_TRANSFER"
+  status        String   // "MANUAL" | "CONFIRMED" | "RECONCILED"
+
+  rawLabel      String   // [CHIFFRÉ AES-256]
+  customLabel   String?  // [CHIFFRÉ AES-256]
+
+  tagId         String?
+  tag           Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  isManualEdit  Boolean  @default(false)
+  importHash    String?  // Hash HMAC-SHA256 du FITID / ligne CSV
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([accountId, importHash])
+  @@index([accountId, date])
+  @@index([accountId, amount, date])
+}
+
+// ==========================================
+// 5. INVESTISSEMENTS (PEA, CRYPTO & PEE)
+// ==========================================
+model Holding {
+  id           String   @id @default(cuid())
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  symbol       String   // ex: "CW8.PA", "bitcoin"
+  name         String   // [CHIFFRÉ AES-256]
+  assetType    String   // "ETF" | "STOCK" | "CRYPTO"
+  quantity     Float
+  averagePrice Int?     // En centimes
+
+  updatedAt    DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+model ValuationSnapshot {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  date       DateTime // Normalisé 00:00:00 UTC
+  totalValue Int      // En centimes EUR
+
+  @@unique([accountId, date])
+  @@index([accountId, date])
+}
+
+// ==========================================
+// 6. AUTHENTIFICATION (BETTER-AUTH)
+// ==========================================
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Compte de connexion OAuth (sans rapport avec les comptes bancaires "Account").
+model AuthAccount {
+  id                    String    @id
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String    // Identifiant chez GitHub / Google
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Passkey {
+  id           String    @id
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String?
+  publicKey    String
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  aaguid       String?
+  createdAt    DateTime? @default(now())
+
+  @@index([userId])
+  @@index([credentialID])
+}
