@@ -11,8 +11,8 @@ export function BottomNavLink({ item, isActive }: { item: NavItem; isActive: boo
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex h-16 flex-col items-center justify-center gap-1 text-[0.7rem] font-medium",
-        isActive ? "text-primary" : "text-muted-foreground",
+        "flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[0.7rem] font-medium transition-colors",
+        isActive ? "bg-brand/10 text-brand" : "text-muted-foreground",
       )}
     >
       <Icon className="size-5" aria-hidden />

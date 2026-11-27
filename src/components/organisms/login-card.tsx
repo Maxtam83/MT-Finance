@@ -8,7 +8,7 @@ export function LoginCard(props: SignInPanelProps) {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <CardTitle>
-          <h1 className="text-lg">Connexion</h1>
+          <h2>Connexion</h2>
         </CardTitle>
         <CardDescription>Accès réservé aux personnes autorisées.</CardDescription>
       </CardHeader>

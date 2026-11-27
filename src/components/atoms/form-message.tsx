@@ -11,7 +11,7 @@ export function FormMessage({ state }: { state: ActionState }) {
       aria-live="polite"
       className={cn(
         "text-sm empty:hidden",
-        state.status === "error" ? "text-destructive" : "text-primary",
+        state.status === "error" ? "text-destructive" : "text-success",
       )}
     >
       {state.status === "idle" ? null : state.message}

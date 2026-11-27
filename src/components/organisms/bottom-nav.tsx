@@ -4,14 +4,14 @@ import { usePathname } from "next/navigation";
 import { BottomNavLink } from "@/components/molecules/bottom-nav-link";
 import { getNavItems, isActivePath } from "@/lib/navigation";
 
-/** Barre de navigation basse, en dessous de 768 px. */
+/** Barre de navigation basse en capsule flottante, en dessous de 768 px. */
 export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav
       aria-label="Navigation principale"
-      className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="glass fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 rounded-3xl p-1 shadow-card md:hidden"
     >
       <ul className="flex">
         {getNavItems(isAdmin).map((item) => (

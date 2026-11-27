@@ -10,10 +10,10 @@ export function SidebarLink({ item, isActive }: { item: NavItem; isActive: boole
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center gap-3 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors",
         isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          ? "border-brand/20 bg-brand/10 text-brand"
+          : "border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground",
       )}
     >
       <Icon className="size-4" aria-hidden />

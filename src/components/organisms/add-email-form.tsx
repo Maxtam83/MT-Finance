@@ -20,7 +20,7 @@ export function AddEmailForm() {
         placeholder="prenom@exemple.fr"
         maxLength={254}
         required
-        className="h-9"
+        className="h-11"
         trailing={
           <Button type="submit" size="lg" disabled={isPending}>
             Autoriser
